@@ -1,6 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/theme_provider.dart';
 
@@ -15,6 +18,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _nameController;
   late TextEditingController _emailController;
+  final ImagePicker _picker = ImagePicker();
+  File? _imageFile;
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -29,6 +35,154 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _nameController.dispose();
     _emailController.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      // Set loading state before picking to show feedback
+      setState(() {
+        _isUploading = true;
+      });
+      
+      final pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      ).catchError((error) {
+        // Handle picker errors explicitly
+        debugPrint('Image picker error: $error');
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not access camera: $error')),
+          );
+        }
+        return null;
+      });
+
+      // User cancelled or picker returned null
+      if (pickedFile == null) {
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+        }
+        return;
+      }
+
+      // Successfully picked an image
+      if (mounted) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+        });
+      }
+
+      // Upload image to server
+      try {
+        final authProvider = context.read<AuthProvider>();
+        final success = await authProvider.updateProfileImage(pickedFile.path);
+
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Profile image updated successfully')),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(authProvider.error ?? 'Failed to update profile image')),
+            );
+          }
+        }
+      } catch (uploadError) {
+        debugPrint('Image upload error: $uploadError');
+        if (mounted) {
+          setState(() {
+            _isUploading = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error uploading image: $uploadError')),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('General error in _pickImage: $e');
+      if (mounted) {
+        setState(() {
+          _isUploading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking image: $e')),
+        );
+      }
+    }
+  }
+
+  ImageProvider? _getProfileImage(AuthProvider authProvider) {
+    if (_imageFile != null) {
+      return FileImage(_imageFile!);
+    } else if (authProvider.profileImage != null) {
+      return NetworkImage(authProvider.profileImage!);
+    }
+    return null;
+  }
+
+  void _showImageSourceActionSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16.r)),
+      ),
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: 16.h),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Select Profile Picture',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                ListTile(
+                  leading: Icon(Icons.photo_library, size: 24.sp),
+                  title: Text(
+                    'Choose from Gallery',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImage(ImageSource.gallery);
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.camera_alt, size: 24.sp),
+                  title: Text(
+                    'Take a Photo',
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
+                  ),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _pickImage(ImageSource.camera);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _saveProfile(AuthProvider authProvider) async {
@@ -48,6 +202,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -70,43 +226,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Stack(
                 children: [
                   Semantics(
-                    label:
-                        'Profile picture with ${(authProvider.userName?.isNotEmpty ?? false) ? "the letter ${authProvider.userName![0].toUpperCase()}" : "no text"}',
+                    label: 'Profile picture',
                     child: CircleAvatar(
-                      radius: 50.r,
-                      backgroundColor: Theme.of(
-                        context,
-                      ).primaryColor.withOpacity(0.1),
-                      child: Text(
-                        (authProvider.userName?.isNotEmpty ?? false)
-                            ? authProvider.userName![0].toUpperCase()
-                            : '',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 32.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).primaryColor,
-                        ),
-                      ),
+                      radius: 60.r,
+                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                      backgroundImage: _getProfileImage(authProvider),
+                      child: _isUploading
+                          ? CircularProgressIndicator(
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Theme.of(context).primaryColor,
+                              ),
+                            )
+                          : (authProvider.profileImage == null && _imageFile == null)
+                              ? Text(
+                                  (authProvider.userName?.isNotEmpty ?? false)
+                                      ? authProvider.userName![0].toUpperCase()
+                                      : '',
+                                  style: TextStyle(
+                                    fontFamily: 'Poppins',
+                                    fontSize: 36.sp,
+                                    fontWeight: FontWeight.w600,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                )
+                              : null,
                     ),
                   ),
                   Positioned(
                     right: 0,
                     bottom: 0,
-                    child: Semantics(
-                      button: true,
-                      label: 'Edit profile picture',
+                    child: GestureDetector(
+                      onTap: _showImageSourceActionSheet,
                       child: Container(
-                        padding: EdgeInsets.all(4.w),
+                        padding: EdgeInsets.all(8.r),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
+                          color: isDark ? AppColors.primaryDark : AppColors.primary,
                           shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Icon(
-                          Icons.edit,
-                          size: 16.sp,
+                          Icons.camera_alt,
+                          size: 20.sp,
                           color: Colors.white,
-                          semanticLabel: 'Edit',
                         ),
                       ),
                     ),

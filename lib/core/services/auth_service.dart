@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:path/path.dart' as path;
+import 'package:http_parser/http_parser.dart';
 import '../config/env.dart';
 
 class AuthService {
@@ -367,6 +371,106 @@ class AuthService {
     } catch (e) {
       debugPrint('Error getting user profile: $e');
       throw Exception('Failed to fetch user profile: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>> updateProfileImage(String imagePath) async {
+    try {
+      debugPrint('Starting profile image update process');
+      final token = await getToken();
+      if (token == null) {
+        debugPrint('Authentication token not found');
+        throw Exception('Not authenticated');
+      }
+
+      // Verify file exists
+      final file = File(imagePath);
+      if (!await file.exists()) {
+        debugPrint('Image file not found at path: $imagePath');
+        throw Exception('Image file not found');
+      }
+
+      // Get file size for logging
+      final fileSize = await file.length();
+      debugPrint('Image file size: ${(fileSize / 1024).toStringAsFixed(2)} KB');
+
+      final fileExtension = path
+          .extension(imagePath)
+          .toLowerCase()
+          .replaceAll('.', '');
+
+      // Create multipart request with timeout
+      final request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${Env.apiUrl}/api/user/update-profile-image'),
+      );
+
+      // Add authorization header
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
+
+      debugPrint('Preparing to upload image with extension: $fileExtension');
+
+      // Add file to request
+      try {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'profile_image',
+            imagePath,
+            contentType: MediaType('image', fileExtension),
+          ),
+        );
+        debugPrint('File added to request successfully');
+      } catch (fileError) {
+        debugPrint('Error adding file to request: $fileError');
+        throw Exception('Failed to process image: $fileError');
+      }
+
+      // Send request with timeout
+      debugPrint('Sending image upload request');
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
+        onTimeout: () {
+          debugPrint('Image upload request timed out');
+          throw Exception('Request timed out');
+        },
+      );
+
+      debugPrint(
+        'Received response with status: ${streamedResponse.statusCode}',
+      );
+      final response = await http.Response.fromStream(streamedResponse);
+
+      // For debugging purposes
+      debugPrint(
+        'Response body: ${response.body.substring(0, min(100, response.body.length))}...',
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        debugPrint('Image upload successful');
+        return data;
+      } else {
+        Map<String, dynamic> error = {};
+        try {
+          error = jsonDecode(response.body);
+        } catch (e) {
+          debugPrint('Failed to parse error response: $e');
+        }
+        debugPrint(
+          'Image upload failed with status: ${response.statusCode}, message: ${error['message'] ?? 'Unknown error'}',
+        );
+        throw Exception(
+          error['message'] ??
+              'Failed to update profile image (${response.statusCode})',
+        );
+      }
+    } catch (e) {
+      debugPrint('Error updating profile image: $e');
+      // Return a mock response instead of throwing to prevent app crashes
+      return {'success': false, 'error': e.toString(), 'profile_image': null};
     }
   }
 

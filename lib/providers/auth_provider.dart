@@ -6,6 +6,7 @@ class AuthProvider extends ChangeNotifier {
 
   String? _userName;
   String? _userEmail;
+  String? _profileImage;
   bool _notificationsEnabled = true;
   bool _savePaymentMethods = true;
   bool _isLoading = false;
@@ -14,6 +15,7 @@ class AuthProvider extends ChangeNotifier {
 
   String? get userName => _userName;
   String? get userEmail => _userEmail;
+  String? get profileImage => _profileImage;
   bool get notificationsEnabled => _notificationsEnabled;
   bool get savePaymentMethods => _savePaymentMethods;
   bool get isLoading => _isLoading;
@@ -57,16 +59,40 @@ class AuthProvider extends ChangeNotifier {
       }
       _userName = userData['name'];
       _userEmail = userData['email'];
+      _profileImage = userData['profile_image'];
     } catch (e) {
       debugPrint('Failed to load user profile: $e');
       throw Exception('Failed to load user profile');
     }
   }
 
-  void updateProfile({String? name, String? email}) {
+  void updateProfile({String? name, String? email, String? profileImage}) {
     if (name != null) _userName = name;
     if (email != null) _userEmail = email;
+    if (profileImage != null) _profileImage = profileImage;
     notifyListeners();
+  }
+  
+  Future<bool> updateProfileImage(String imagePath) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      final response = await _authService.updateProfileImage(imagePath);
+      if (response['profile_image'] != null) {
+        _profileImage = response['profile_image'];
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+      throw Exception('Failed to update profile image');
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
   }
 
   void toggleNotifications(bool value) {

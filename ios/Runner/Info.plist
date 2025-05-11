@@ -45,6 +45,12 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs camera access to take profile pictures</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs photo library access to select profile pictures</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs microphone access for video recording</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>

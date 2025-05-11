@@ -45,6 +45,9 @@ dependencies:
   flutter_dotenv: ^5.2.1
   shared_preferences: ^2.5.3
   google_sign_in: ^6.3.0
+  image_picker: ^1.0.7
+  http_parser: ^4.0.2
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:
@@ -69,7 +72,7 @@ flutter:
     - .env
     - assets/
     - assets/google_logo.png
-    - assets/images/logo.png
+    - assets/images/logo.jpg
     - assets/fonts/
   fonts:
     - family: Inter
