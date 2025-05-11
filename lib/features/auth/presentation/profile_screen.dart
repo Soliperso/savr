@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../core/theme/app_colors.dart';
+import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/theme_provider.dart';
+import '../../../core/theme/app_colors.dart';
+import 'widgets/profile_picture_widget.dart';
+import 'widgets/settings_card.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -39,87 +42,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     try {
-      // Set loading state before picking to show feedback
       setState(() {
         _isUploading = true;
       });
-      
+
       final pickedFile = await _picker.pickImage(
         source: source,
         maxWidth: 800,
         maxHeight: 800,
         imageQuality: 85,
-      ).catchError((error) {
-        // Handle picker errors explicitly
-        debugPrint('Image picker error: $error');
-        if (mounted) {
-          setState(() {
-            _isUploading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not access camera: $error')),
-          );
-        }
-        return null;
-      });
+      );
 
-      // User cancelled or picker returned null
       if (pickedFile == null) {
-        if (mounted) {
-          setState(() {
-            _isUploading = false;
-          });
-        }
+        setState(() {
+          _isUploading = false;
+        });
         return;
       }
 
-      // Successfully picked an image
-      if (mounted) {
+      // Crop the image
+      final croppedFile = await ImageCropper().cropImage(
+        sourcePath: pickedFile.path,
+        aspectRatioPresets: [
+          CropAspectRatioPreset.square,
+          CropAspectRatioPreset.ratio4x3,
+        ],
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: Theme.of(context).primaryColor,
+            toolbarWidgetColor: Colors.white,
+            lockAspectRatio: false,
+          ),
+          IOSUiSettings(title: 'Crop Image'),
+        ],
+      );
+
+      if (croppedFile == null) {
         setState(() {
-          _imageFile = File(pickedFile.path);
+          _isUploading = false;
         });
+        return;
       }
 
-      // Upload image to server
-      try {
-        final authProvider = context.read<AuthProvider>();
-        final success = await authProvider.updateProfileImage(pickedFile.path);
+      setState(() {
+        _imageFile = File(croppedFile.path);
+      });
 
-        if (mounted) {
-          setState(() {
-            _isUploading = false;
-          });
+      final success = await context.read<AuthProvider>().updateProfileImage(
+        croppedFile.path,
+      );
 
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Profile image updated successfully')),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(authProvider.error ?? 'Failed to update profile image')),
-            );
-          }
-        }
-      } catch (uploadError) {
-        debugPrint('Image upload error: $uploadError');
-        if (mounted) {
-          setState(() {
-            _isUploading = false;
-          });
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error uploading image: $uploadError')),
-          );
-        }
+      setState(() {
+        _isUploading = false;
+      });
+
+      if (mounted) {
+        // Enhanced snackbar messages with bold text for better visibility
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  success ? Icons.check_circle : Icons.error,
+                  color: success ? Colors.green : Colors.red,
+                ),
+                SizedBox(width: 8.w),
+                Text(
+                  success
+                      ? 'Profile image updated successfully'
+                      : 'Failed to update profile image',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            backgroundColor:
+                success ? Colors.green.shade100 : Colors.red.shade100,
+          ),
+        );
       }
     } catch (e) {
-      debugPrint('General error in _pickImage: $e');
       if (mounted) {
         setState(() {
           _isUploading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -131,6 +140,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return NetworkImage(authProvider.profileImage!);
     }
     return null;
+  }
+
+  Future<void> _saveProfile(AuthProvider authProvider) async {
+    if (_formKey.currentState?.validate() ?? false) {
+      setState(() {
+        _isUploading = true;
+      });
+
+      try {
+        // Call the updateProfile method synchronously
+        authProvider.updateProfile(
+          name: _nameController.text,
+          email: _emailController.text,
+        );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle, color: Colors.green),
+                  SizedBox(width: 8.w),
+                  const Text('Profile updated successfully!'),
+                ],
+              ),
+              backgroundColor: Colors.green.shade100,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.error, color: Colors.red),
+                  SizedBox(width: 8.w),
+                  Text('Error updating profile: $e'),
+                ],
+              ),
+              backgroundColor: Colors.red.shade100,
+            ),
+          );
+        }
+      } finally {
+        setState(() {
+          _isUploading = false;
+        });
+      }
+    }
   }
 
   void _showImageSourceActionSheet() {
@@ -162,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
                   ),
                   onTap: () {
-                    Navigator.of(context).pop();
+                    Navigator.pop(context);
                     _pickImage(ImageSource.gallery);
                   },
                 ),
@@ -173,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
                   ),
                   onTap: () {
-                    Navigator.of(context).pop();
+                    Navigator.pop(context);
                     _pickImage(ImageSource.camera);
                   },
                 ),
@@ -185,25 +244,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Future<void> _saveProfile(AuthProvider authProvider) async {
-    if (_formKey.currentState?.validate() ?? false) {
-      authProvider.updateProfile(
-        name: _nameController.text,
-        email: _emailController.text,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully')),
-        );
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    
+
+    final primaryColor = isDark ? AppColors.primaryDark : AppColors.primary;
+    final iconColor = isDark ? Colors.white : Colors.black;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -212,9 +261,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             fontFamily: 'Poppins',
             fontSize: 20.sp,
             fontWeight: FontWeight.w600,
+            color: primaryColor,
           ),
         ),
+        backgroundColor: isDark ? Colors.black : Colors.white,
         elevation: 0,
+        iconTheme: IconThemeData(color: iconColor),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
@@ -222,66 +274,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Profile Picture Section
-            Center(
-              child: Stack(
-                children: [
-                  Semantics(
-                    label: 'Profile picture',
-                    child: CircleAvatar(
-                      radius: 60.r,
-                      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
-                      backgroundImage: _getProfileImage(authProvider),
-                      child: _isUploading
-                          ? CircularProgressIndicator(
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Theme.of(context).primaryColor,
-                              ),
-                            )
-                          : (authProvider.profileImage == null && _imageFile == null)
-                              ? Text(
-                                  (authProvider.userName?.isNotEmpty ?? false)
-                                      ? authProvider.userName![0].toUpperCase()
-                                      : '',
-                                  style: TextStyle(
-                                    fontFamily: 'Poppins',
-                                    fontSize: 36.sp,
-                                    fontWeight: FontWeight.w600,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                )
-                              : null,
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: GestureDetector(
-                      onTap: _showImageSourceActionSheet,
-                      child: Container(
-                        padding: EdgeInsets.all(8.r),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.primaryDark : AppColors.primary,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.2),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: Icon(
-                          Icons.camera_alt,
-                          size: 20.sp,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            ProfilePictureWidget(
+              imageProvider: _getProfileImage(authProvider),
+              isUploading: _isUploading,
+              onEdit: _showImageSourceActionSheet,
+              primaryColor: primaryColor,
+              iconColor: iconColor,
+              userName: authProvider.userName,
             ),
-
             SizedBox(height: 32.h),
 
             // Personal Information Section
@@ -292,6 +292,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontFamily: 'Poppins',
                   fontWeight: FontWeight.w600,
+                  color: primaryColor,
                 ),
               ),
             ),
@@ -300,66 +301,60 @@ class _ProfileScreenState extends State<ProfileScreen> {
               key: _formKey,
               child: Column(
                 children: [
-                  Semantics(
-                    label: 'Name input field',
-                    child: TextFormField(
-                      controller: _nameController,
-                      decoration: InputDecoration(
-                        labelText: 'Name',
-                        hintText: 'Enter your name',
-                        prefixIcon: Icon(Icons.person_outline, size: 24.sp),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Name',
+                      prefixIcon: Icon(Icons.person_outline, size: 24.sp),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
-                      style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                      validator:
-                          (value) =>
-                              value?.isEmpty ?? true
-                                  ? 'Please enter your name'
-                                  : null,
                     ),
+                    validator:
+                        (value) =>
+                            value?.isEmpty ?? true
+                                ? 'Please enter your name'
+                                : null,
                   ),
                   SizedBox(height: 16.h),
-                  Semantics(
-                    label: 'Email input field',
-                    child: TextFormField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        labelText: 'Email',
-                        hintText: 'Enter your email',
-                        prefixIcon: Icon(Icons.email_outlined, size: 24.sp),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
+                  TextFormField(
+                    controller: _emailController,
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      prefixIcon: Icon(Icons.email_outlined, size: 24.sp),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8.r),
                       ),
-                      style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                      validator:
-                          (value) =>
-                              value?.isEmpty ?? true
-                                  ? 'Please enter your email'
-                                  : null,
                     ),
+                    validator:
+                        (value) =>
+                            value?.isEmpty ?? true
+                                ? 'Please enter your email'
+                                : null,
                   ),
-                  SizedBox(height: 16.h),
+                  SizedBox(height: 24.h),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () => _saveProfile(authProvider),
-                      style: ElevatedButton.styleFrom(
-                        padding: EdgeInsets.symmetric(vertical: 12.h),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8.r),
-                        ),
-                      ),
-                      child: Text(
-                        'Save Changes',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+                      onPressed:
+                          _isUploading
+                              ? null
+                              : () => _saveProfile(authProvider),
+                      child:
+                          _isUploading
+                              ? const CircularProgressIndicator(
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.white,
+                                ),
+                              )
+                              : Text(
+                                'Save Changes',
+                                style: TextStyle(
+                                  fontFamily: 'Poppins',
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
                     ),
                   ),
                 ],
@@ -368,14 +363,100 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Settings Section
             SizedBox(height: 32.h),
-            Semantics(
-              header: true,
-              child: Text(
-                'Settings',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
+            Text(
+              'Settings',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
+              ),
+            ),
+            SizedBox(height: 16.h),
+            SettingsCard(
+              isDarkMode: themeProvider.isDarkMode,
+              notificationsEnabled: authProvider.notificationsEnabled,
+              onDarkModeToggle: (_) => themeProvider.toggleTheme(),
+              onNotificationsToggle: authProvider.toggleNotifications,
+              additionalOptions: [
+                ListTile(
+                  leading: Icon(
+                    Icons.lock_outline,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
+                  title: Text(
+                    'Change Password',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16.sp,
+                    color: iconColor,
+                  ),
+                  onTap: () {
+                    // Navigate to password change screen or show a dialog
+                  },
                 ),
+                Divider(height: 1, color: Colors.grey.shade300, thickness: 0.5),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  title: Text(
+                    'Delete Account',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      fontFamily: 'Inter',
+                      color: Colors.red,
+                    ),
+                  ),
+                  trailing: Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16.sp,
+                    color: Colors.red,
+                  ),
+                  onTap: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text('Delete Account'),
+                          content: const Text(
+                            'Are you sure you want to delete your account? This action cannot be undone.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Delete'),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+
+                    if (confirm == true) {
+                      await authProvider.deleteAccount();
+                      if (mounted) {
+                        Navigator.of(
+                          context,
+                        ).pushNamedAndRemoveUntil('/login', (route) => false);
+                      }
+                    }
+                  },
+                ),
+              ],
+            ),
+
+            // Create a new card section for Languages and Currency
+            SizedBox(height: 32.h),
+            Text(
+              'Preferences',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontFamily: 'Poppins',
+                fontWeight: FontWeight.w600,
+                color: primaryColor,
               ),
             ),
             SizedBox(height: 16.h),
@@ -385,68 +466,90 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  Semantics(
-                    toggled: authProvider.notificationsEnabled,
-                    label: 'Toggle notifications',
-                    child: SwitchListTile(
-                      title: Text(
-                        'Notifications',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
-                      ),
-                      secondary: Icon(
-                        Icons.notifications_outlined,
-                        size: 24.sp,
-                      ),
-                      value: authProvider.notificationsEnabled,
-                      onChanged: authProvider.toggleNotifications,
+                  ListTile(
+                    leading: Icon(
+                      Icons.language,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                    title: Text(
+                      'Language',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
+                    ),
+                    trailing: DropdownButton<String>(
+                      value: null, // Removed default value
+                      // hint: Text('Select Language'),
+                      underline: Container(), // Remove the underline
+                      items:
+                          authProvider.availableLanguages.map((
+                            String language,
+                          ) {
+                            return DropdownMenuItem<String>(
+                              value: language,
+                              child: Text(
+                                language,
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                      onChanged: (String? newLanguage) {
+                        if (newLanguage != null) {
+                          authProvider.changeLanguage(newLanguage);
+                        }
+                      },
                     ),
                   ),
-                  Divider(height: 1),
-                  Semantics(
-                    toggled: authProvider.savePaymentMethods,
-                    label: 'Toggle save payment methods',
-                    child: SwitchListTile(
-                      title: Text(
-                        'Save Payment Methods',
-                        style: Theme.of(
-                          context,
-                        ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
-                      ),
-                      secondary: Icon(Icons.credit_card_outlined, size: 24.sp),
-                      value: authProvider.savePaymentMethods,
-                      onChanged: authProvider.toggleSavePaymentMethods,
-                    ),
+                  Divider(
+                    height: 1,
+                    color: Colors.grey.shade300,
+                    thickness: 0.5,
                   ),
-                  Divider(height: 1),
-                  Consumer<ThemeProvider>(
-                    builder:
-                        (context, themeProvider, _) => Semantics(
-                          toggled: themeProvider.isDarkMode,
-                          label: 'Toggle dark mode',
-                          child: SwitchListTile(
-                            title: Text(
-                              'Dark Mode',
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(fontFamily: 'Inter'),
-                            ),
-                            secondary: Icon(
-                              themeProvider.isDarkMode
-                                  ? Icons.dark_mode_outlined
-                                  : Icons.light_mode_outlined,
-                              size: 24.sp,
-                            ),
-                            value: themeProvider.isDarkMode,
-                            onChanged: (_) => themeProvider.toggleTheme(),
-                          ),
-                        ),
+                  ListTile(
+                    leading: Icon(
+                      Icons.attach_money,
+                      color: isDark ? Colors.white : Colors.black,
+                    ),
+                    title: Text(
+                      'Currency',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
+                    ),
+                    trailing: DropdownButton<String>(
+                      value: null, // Removed default value
+                      // hint: Text('Select Currency'),
+                      underline: Container(), // Remove the underline
+                      items:
+                          authProvider.availableCurrencies.map((
+                            String currency,
+                          ) {
+                            return DropdownMenuItem<String>(
+                              value: currency,
+                              child: Text(
+                                currency,
+                                style: TextStyle(
+                                  fontSize: 14.sp,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                      onChanged: (String? newCurrency) {
+                        if (newCurrency != null) {
+                          authProvider.changeCurrency(newCurrency);
+                        }
+                      },
+                    ),
                   ),
                 ],
               ),
             ),
 
-            // Logout Section
+            // Logout Button
             SizedBox(height: 32.h),
             SizedBox(
               width: double.infinity,
@@ -461,22 +564,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
-                  padding: EdgeInsets.symmetric(vertical: 12.h),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.r),
-                  ),
                 ),
-                child: Semantics(
-                  button: true,
-                  label: 'Log out of your account',
-                  child: Text(
-                    'Logout',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
-                      fontSize: 16.sp,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                    ),
+                child: Text(
+                  'Logout',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white,
                   ),
                 ),
               ),

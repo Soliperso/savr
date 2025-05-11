@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../core/services/auth_service.dart';
+import 'package:flutter/material.dart';
 
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -13,6 +14,12 @@ class AuthProvider extends ChangeNotifier {
   String? _error;
   bool _isAuthenticated = false;
 
+  // Define language and currency management variables
+  String _currentLanguage = 'English';
+  List<String> _availableLanguages = ['English', 'French', 'Spanish'];
+  String _currentCurrency = 'USD';
+  List<String> _availableCurrencies = ['USD', 'EUR', 'GBP', 'INR'];
+
   String? get userName => _userName;
   String? get userEmail => _userEmail;
   String? get profileImage => _profileImage;
@@ -21,6 +28,10 @@ class AuthProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isAuthenticated => _isAuthenticated;
+  String get currentLanguage => _currentLanguage;
+  List<String> get availableLanguages => _availableLanguages;
+  String get currentCurrency => _currentCurrency;
+  List<String> get availableCurrencies => _availableCurrencies;
 
   AuthProvider() {
     _checkAuthStatus();
@@ -72,12 +83,12 @@ class AuthProvider extends ChangeNotifier {
     if (profileImage != null) _profileImage = profileImage;
     notifyListeners();
   }
-  
+
   Future<bool> updateProfileImage(String imagePath) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    
+
     try {
       final response = await _authService.updateProfileImage(imagePath);
       if (response['profile_image'] != null) {
@@ -102,6 +113,16 @@ class AuthProvider extends ChangeNotifier {
 
   void toggleSavePaymentMethods(bool value) {
     _savePaymentMethods = value;
+    notifyListeners();
+  }
+
+  void changeLanguage(String newLanguage) {
+    _currentLanguage = newLanguage;
+    notifyListeners();
+  }
+
+  void changeCurrency(String newCurrency) {
+    _currentCurrency = newCurrency;
     notifyListeners();
   }
 
@@ -247,4 +268,48 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
   }
+
+  // Add deleteAccount method
+  Future<void> deleteAccount() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _authService.deleteAccount();
+      _userName = null;
+      _userEmail = null;
+      _profileImage = null;
+      _isAuthenticated = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Add language and currency management as list view items
+  List<Map<String, dynamic>> get settingsOptions => [
+    {
+      'title': 'Dark Mode',
+      'icon': Icons.dark_mode_outlined,
+      'value': notificationsEnabled,
+      'onChanged': toggleNotifications,
+    },
+    {
+      'title': 'Language',
+      'icon': Icons.language,
+      'value': _currentLanguage,
+      'onChanged': changeLanguage,
+    },
+    {
+      'title': 'Currency',
+      'icon': Icons.attach_money,
+      'value': _currentCurrency,
+      'onChanged': changeCurrency,
+    },
+  ];
 }

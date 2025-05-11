@@ -499,4 +499,21 @@ class AuthService {
       throw Exception('Failed to sign in with Google: $e');
     }
   }
+
+  // Add deleteAccount method
+  Future<void> deleteAccount() async {
+    final token = await getToken();
+    if (token == null) {
+      throw Exception('Not authenticated');
+    }
+
+    final response = await http.delete(
+      Uri.parse('${Env.baseApiUrl}/user/delete'),
+      headers: _getHeaders(token),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete account: ${response.body}');
+    }
+  }
 }
