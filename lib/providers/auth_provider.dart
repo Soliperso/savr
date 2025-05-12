@@ -91,8 +91,25 @@ class AuthProvider extends ChangeNotifier {
 
     try {
       final response = await _authService.updateProfileImage(imagePath);
-      if (response['profile_image'] != null) {
-        _profileImage = response['profile_image'];
+      debugPrint('Profile image upload response: \$response');
+      String? imageUrl;
+      if (response['profile_image'] != null &&
+          response['profile_image'].toString().isNotEmpty) {
+        imageUrl = response['profile_image'];
+      } else if (response['profileImageUrl'] != null &&
+          response['profileImageUrl'].toString().isNotEmpty) {
+        imageUrl = response['profileImageUrl'];
+      } else if (response['user'] is Map &&
+          response['user']['profile_image'] != null &&
+          response['user']['profile_image'].toString().isNotEmpty) {
+        imageUrl = response['user']['profile_image'];
+      } else if (response['data'] is Map &&
+          response['data']['profile_image'] != null &&
+          response['data']['profile_image'].toString().isNotEmpty) {
+        imageUrl = response['data']['profile_image'];
+      }
+      if (imageUrl != null) {
+        _profileImage = imageUrl;
         _isLoading = false;
         notifyListeners();
         return true;

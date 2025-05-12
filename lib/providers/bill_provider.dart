@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import '../features/bills/models/bill.dart';
-import '../features/bills/models/bill_status.dart';
-import '../features/bills/models/group.dart';
+import 'package:savr/models/bill.dart';
+import 'package:savr/models/group.dart';
 
 class BillProvider extends ChangeNotifier {
   final List<Group> _groups = [
@@ -31,9 +30,8 @@ class BillProvider extends ChangeNotifier {
       description: 'Monthly internet bill',
       dueDate: DateTime.parse('2025-05-10'),
       amount: 40.0,
-      status: BillStatus.pending,
-      splitWith: ['John', 'Sarah'],
-      customSplits: {},
+      splitWith: [],
+      status: 'pending',
       paid: false,
       paidBy: const [],
     ),
@@ -44,9 +42,8 @@ class BillProvider extends ChangeNotifier {
       description: 'May electricity bill',
       dueDate: DateTime.parse('2025-05-12'),
       amount: 60.0,
-      status: BillStatus.pending,
-      splitWith: ['John'],
-      customSplits: {},
+      splitWith: [],
+      status: 'pending',
       paid: false,
       paidBy: const [],
     ),
@@ -57,8 +54,8 @@ class BillProvider extends ChangeNotifier {
       description: '',
       dueDate: DateTime.parse('2025-05-15'),
       amount: 800.0,
-      status: BillStatus.pending,
-      splitWith: ['John', 'Sarah', 'Mike'],
+      splitWith: [],
+      status: 'pending',
       paid: false,
       paidBy: const [],
     ),
@@ -69,8 +66,8 @@ class BillProvider extends ChangeNotifier {
       description: '',
       dueDate: DateTime.parse('2025-05-05'),
       amount: 250.0,
-      status: BillStatus.overdue,
-      splitWith: ['Lisa', 'David', 'Sarah'],
+      splitWith: [],
+      status: 'overdue',
       paid: false,
       paidBy: const [],
     ),
@@ -81,8 +78,8 @@ class BillProvider extends ChangeNotifier {
       description: '',
       dueDate: DateTime.parse('2025-05-01'),
       amount: 150.0,
-      status: BillStatus.paid,
-      splitWith: ['Lisa', 'David'],
+      splitWith: [],
+      status: 'paid',
       paid: true,
       paidBy: ['Lisa', 'David'],
     ),
@@ -92,10 +89,10 @@ class BillProvider extends ChangeNotifier {
   List<Group> get groups => _groups;
 
   List<Bill> get pendingBills =>
-      _bills.where((bill) => bill.status == BillStatus.pending).toList();
+      _bills.where((bill) => bill.status == 'pending').toList();
 
   List<Bill> get overdueBills =>
-      _bills.where((bill) => bill.status == BillStatus.overdue).toList();
+      _bills.where((bill) => bill.status == 'overdue').toList();
 
   List<Bill> get paidBills => _bills.where((bill) => bill.paid).toList();
 
@@ -137,10 +134,7 @@ class BillProvider extends ChangeNotifier {
     String id = DateTime.now().millisecondsSinceEpoch.toString();
 
     // Determine status based on due date
-    BillStatus status =
-        dueDate.isAfter(DateTime.now())
-            ? BillStatus.pending
-            : BillStatus.overdue;
+    String status = dueDate.isAfter(DateTime.now()) ? 'pending' : 'overdue';
 
     final newBill = Bill(
       id: id,
@@ -149,9 +143,8 @@ class BillProvider extends ChangeNotifier {
       description: description,
       dueDate: dueDate,
       amount: amount,
+      splitWith: [],
       status: status,
-      splitWith: splitWith,
-      customSplits: customSplits ?? {},
       paid: false,
       paidBy: const [],
     );
@@ -217,10 +210,7 @@ class BillProvider extends ChangeNotifier {
   void markAsPaid(String id) {
     final index = _bills.indexWhere((bill) => bill.id == id);
     if (index != -1) {
-      _bills[index] = _bills[index].copyWith(
-        status: BillStatus.paid,
-        paid: true,
-      );
+      _bills[index] = _bills[index].copyWith(status: 'paid', paid: true);
       notifyListeners();
     }
   }
@@ -240,7 +230,7 @@ class BillProvider extends ChangeNotifier {
         _bills[index] = currentBill.copyWith(
           paidBy: paidBy,
           paid: allPaid,
-          status: allPaid ? BillStatus.paid : currentBill.status,
+          status: allPaid ? 'paid' : currentBill.status,
         );
         notifyListeners();
       }
@@ -253,8 +243,8 @@ class BillProvider extends ChangeNotifier {
   }
 
   double getMyShare(Bill bill) {
-    if (bill.customSplits.isNotEmpty) {
-      return bill.customSplits['user'] ?? 0.0; // User's custom split amount
+    if (bill.customSplits?.isNotEmpty == true) {
+      return bill.customSplits?['user'] ?? 0.0; // User's custom split amount
     }
 
     // Default to equal split
@@ -273,8 +263,10 @@ class BillProvider extends ChangeNotifier {
             description: '',
             dueDate: DateTime.now(),
             amount: 0,
-            status: BillStatus.pending,
-            splitWith: const [],
+            splitWith: [],
+            status: 'pending',
+            paid: false,
+            paidBy: const [],
           ),
     );
   }

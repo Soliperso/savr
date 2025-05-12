@@ -115,16 +115,18 @@ class _DashboardScreenState extends State<DashboardScreen>
           overflow: TextOverflow.ellipsis,
         ),
         actions: [
-          // Search icon
-          IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () {
-              // TODO: Implement search functionality
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Search coming soon')),
+          // Profile Avatar
+          GestureDetector(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
               );
             },
-            tooltip: 'Search',
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: 12.w),
+              child: _buildProfileAvatar(authProvider),
+            ),
           ),
           // Notification bell with badge
           ScaleTransition(
@@ -348,5 +350,34 @@ class _DashboardScreenState extends State<DashboardScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildProfileAvatar(AuthProvider authProvider) {
+    final photoUrl = authProvider.profileImage;
+    final userName = authProvider.userName;
+    if (photoUrl != null && photoUrl.isNotEmpty) {
+      return CircleAvatar(
+        radius: 18.r,
+        backgroundImage: NetworkImage(photoUrl),
+      );
+    } else {
+      final firstLetter =
+          (userName?.isNotEmpty == true)
+              ? userName!.trim().split(' ').first[0].toUpperCase()
+              : 'U';
+      return CircleAvatar(
+        radius: 18.r,
+        backgroundColor: Theme.of(context).primaryColor.withOpacity(0.15),
+        child: Text(
+          firstLetter,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 18.sp,
+            fontWeight: FontWeight.w600,
+            color: Theme.of(context).primaryColor,
+          ),
+        ),
+      );
+    }
   }
 }

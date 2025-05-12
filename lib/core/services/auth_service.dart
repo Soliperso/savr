@@ -402,7 +402,7 @@ class AuthService {
       // Create multipart request with timeout
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('${Env.apiUrl}/api/user/update-profile-image'),
+        Uri.parse('${Env.baseApiUrl}/user/update-profile-image'),
       );
 
       // Add authorization header

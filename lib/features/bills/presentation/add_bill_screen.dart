@@ -3,9 +3,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../models/group.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../features/shared/widgets/animated_snackbar.dart';
-import '../models/group.dart';
 
 class AddBillScreen extends StatefulWidget {
   final String groupId;
@@ -330,7 +330,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                 onPressed: _saveBill,
                 style: ElevatedButton.styleFrom(
                   minimumSize: Size(double.infinity, 50.h),
-                  backgroundColor: Color(_group.color),
+                  backgroundColor: Color(_group.color ?? 0xFF000000),
                 ),
                 child: Text(
                   'Save Bill',
@@ -413,7 +413,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                   }
                 });
               },
-              selectedColor: Color(_group.color),
+              selectedColor: Color(_group.color ?? 0xFF000000),
               checkmarkColor: Colors.white,
             );
           }).toList(),
@@ -687,7 +687,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                     fontFamily: 'Poppins',
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w600,
-                    color: Color(_group.color),
+                    color: Color(_group.color ?? 0xFF000000),
                   ),
                 ),
               ],
@@ -767,7 +767,9 @@ class _AddBillScreenState extends State<AddBillScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(primary: Color(_group.color)),
+            colorScheme: ColorScheme.light(
+              primary: Color(_group.color ?? 0xFF000000),
+            ),
           ),
           child: child!,
         );
@@ -897,7 +899,7 @@ Download SavvySplit to start splitting bills with friends!
       AnimatedSnackBar.show(
         context,
         message: 'Added "${newBill.title}" to ${_group.name}',
-        backgroundColor: Color(_group.color).withOpacity(0.9),
+        backgroundColor: Color(_group.color ?? 0xFF000000).withOpacity(0.9),
       );
 
       Navigator.pop(context);

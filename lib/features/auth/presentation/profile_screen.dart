@@ -89,38 +89,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _imageFile = File(croppedFile.path);
       });
 
-      final success = await context.read<AuthProvider>().updateProfileImage(
-        croppedFile.path,
-      );
-
+      // If no backend for image upload, just update locally
+      // TODO: Integrate backend upload when available
       setState(() {
         _isUploading = false;
       });
-
       if (mounted) {
-        // Enhanced snackbar messages with bold text for better visibility
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                Icon(
-                  success ? Icons.check_circle : Icons.error,
-                  color: success ? Colors.green : Colors.red,
-                ),
+                Icon(Icons.check_circle, color: Colors.green),
                 SizedBox(width: 8.w),
                 Text(
-                  success
-                      ? 'Profile image updated successfully'
-                      : 'Failed to update profile image',
+                  'Profile image updated locally',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            backgroundColor:
-                success ? Colors.green.shade100 : Colors.red.shade100,
+            backgroundColor: Colors.green.shade100,
           ),
         );
       }
+      // Uncomment below when backend is ready
+      // final success = await context.read<AuthProvider>().updateProfileImage(croppedFile.path);
+      // setState(() {
+      //   _isUploading = false;
+      // });
+      // if (mounted) {
+      //   // Enhanced snackbar messages with bold text for better visibility
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     SnackBar(
+      //       content: Row(
+      //         children: [
+      //           Icon(
+      //             success ? Icons.check_circle : Icons.error,
+      //             color: success ? Colors.green : Colors.red,
+      //           ),
+      //           SizedBox(width: 8.w),
+      //           Text(
+      //             success
+      //                 ? 'Profile image updated successfully'
+      //                 : 'Failed to update profile image',
+      //             style: const TextStyle(fontWeight: FontWeight.bold),
+      //           ),
+      //         ],
+      //       ),
+      //       backgroundColor:
+      //           success ? Colors.green.shade100 : Colors.red.shade100,
+      //     ),
+      //   );
+      // }
     } catch (e) {
       if (mounted) {
         setState(() {

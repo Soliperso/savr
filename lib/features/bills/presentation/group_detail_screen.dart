@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../models/group.dart';
 import '../../../providers/bill_provider.dart';
-import '../models/group.dart';
 import '../widgets/bill_list_item.dart';
 import 'add_bill_screen.dart';
 
@@ -72,7 +72,9 @@ class GroupDetailScreen extends StatelessWidget {
                       _buildAmountInfo(
                         'Total',
                         totalAmount,
-                        Color(group.color),
+                        Color(
+                          group.color ?? 0xFF000000,
+                        ), // Default to black if null
                       ),
                       _buildAmountInfo(
                         'Pending',
@@ -107,7 +109,7 @@ class GroupDetailScreen extends StatelessWidget {
                       SizedBox(width: 8.w),
                       Expanded(
                         child: Text(
-                          group.description,
+                          group.description ?? 'No description available',
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 14.sp,
@@ -166,7 +168,9 @@ class GroupDetailScreen extends StatelessWidget {
                               ),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: Color(group.color),
+                              backgroundColor: Color(
+                                group.color ?? 0xFF000000,
+                              ), // Default to black if null
                               padding: EdgeInsets.symmetric(
                                 horizontal: 24.w,
                                 vertical: 12.h,
@@ -223,7 +227,9 @@ class GroupDetailScreen extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _navigateToAddBill(context),
-        backgroundColor: Color(group.color),
+        backgroundColor: Color(
+          group.color ?? 0xFF000000,
+        ), // Default to black if null
         icon: const Icon(Icons.add),
         label: Text(
           'Add Bill',

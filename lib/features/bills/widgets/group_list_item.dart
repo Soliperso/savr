@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import '../../../models/group.dart';
 import '../../../providers/bill_provider.dart';
-import '../models/group.dart';
 
 class GroupListItem extends StatelessWidget {
   final Group group;
@@ -33,7 +33,10 @@ class GroupListItem extends StatelessWidget {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12.r),
-        side: BorderSide(color: Color(group.color).withOpacity(0.3), width: 1),
+        side: BorderSide(
+          color: Color(group.color ?? 0xFF000000).withOpacity(0.3),
+          width: 1,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -46,8 +49,13 @@ class GroupListItem extends StatelessWidget {
               Row(
                 children: [
                   CircleAvatar(
-                    backgroundColor: Color(group.color).withOpacity(0.1),
-                    child: Icon(Icons.group, color: Color(group.color)),
+                    backgroundColor: Color(
+                      group.color ?? 0xFF000000,
+                    ).withOpacity(0.1),
+                    child: Icon(
+                      Icons.group,
+                      color: Color(group.color ?? 0xFF000000),
+                    ),
                   ),
                   SizedBox(width: 12.w),
                   Expanded(
@@ -85,7 +93,11 @@ class GroupListItem extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    _buildAmountInfo('Total', totalAmount, Color(group.color)),
+                    _buildAmountInfo(
+                      'Total',
+                      totalAmount,
+                      Color(group.color ?? 0xFF000000),
+                    ),
                     _buildAmountInfo(
                       'Pending',
                       pendingAmount,
@@ -101,14 +113,16 @@ class GroupListItem extends StatelessWidget {
                     child: OutlinedButton(
                       onPressed: onTap,
                       style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: Color(group.color)),
+                        side: BorderSide(
+                          color: Color(group.color ?? 0xFF000000),
+                        ),
                       ),
                       child: Text(
                         'View Details',
                         style: TextStyle(
                           fontFamily: 'Inter',
                           fontSize: 14.sp,
-                          color: Color(group.color),
+                          color: Color(group.color ?? 0xFF000000),
                         ),
                       ),
                     ),
@@ -117,7 +131,7 @@ class GroupListItem extends StatelessWidget {
                   ElevatedButton(
                     onPressed: onAddBill,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(group.color),
+                      backgroundColor: Color(group.color ?? 0xFF000000),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,

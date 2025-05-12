@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../models/bill.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../features/shared/widgets/animated_snackbar.dart';
-import '../models/bill.dart';
-import '../models/bill_status.dart';
 
 class BillDetailScreen extends StatelessWidget {
   final String billId;
@@ -28,18 +27,18 @@ class BillDetailScreen extends StatelessWidget {
     final List<String> splitWith = bill.splitWith;
     final double shareAmount = billProvider.getMyShare(bill);
     final bool isPaid = bill.paid;
-    final BillStatus status = bill.status;
+    final String status = bill.status;
 
     // Determine status color
     Color statusColor;
     switch (status) {
-      case BillStatus.pending:
+      case 'pending':
         statusColor = Colors.orange;
         break;
-      case BillStatus.overdue:
+      case 'overdue':
         statusColor = Colors.red;
         break;
-      case BillStatus.paid:
+      case 'paid':
         statusColor = Colors.green;
         break;
       default:
@@ -81,18 +80,18 @@ class BillDetailScreen extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    status == BillStatus.pending
+                    status == 'pending'
                         ? Icons.access_time
-                        : status == BillStatus.overdue
+                        : status == 'overdue'
                         ? Icons.warning
                         : Icons.check_circle,
                     color: statusColor,
                   ),
                   SizedBox(width: 8.w),
                   Text(
-                    status == BillStatus.pending
+                    status == 'pending'
                         ? 'Pending'
-                        : status == BillStatus.overdue
+                        : status == 'overdue'
                         ? 'Overdue'
                         : 'Paid',
                     style: TextStyle(

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:savr/models/bill.dart';
 import '../../../providers/bill_provider.dart';
 import '../presentation/bill_detail_screen.dart';
-import '../models/bill.dart';
-import '../models/bill_status.dart';
 
 class BillListItem extends StatelessWidget {
   final Bill bill;
@@ -18,13 +17,13 @@ class BillListItem extends StatelessWidget {
     required this.onDeletePressed,
   });
 
-  String _getBillStatusString(BillStatus status) {
+  String _getBillStatusString(String status) {
     switch (status) {
-      case BillStatus.pending:
+      case 'pending':
         return 'pending';
-      case BillStatus.overdue:
+      case 'overdue':
         return 'overdue';
-      case BillStatus.paid:
+      case 'paid':
         return 'paid';
       default:
         return 'unknown';
@@ -44,15 +43,15 @@ class BillListItem extends StatelessWidget {
     IconData statusIcon;
 
     switch (bill.status) {
-      case BillStatus.pending:
+      case 'pending':
         statusColor = Colors.orange;
         statusIcon = Icons.access_time;
         break;
-      case BillStatus.overdue:
+      case 'overdue':
         statusColor = Colors.red;
         statusIcon = Icons.warning;
         break;
-      case BillStatus.paid:
+      case 'paid':
         statusColor = Colors.green;
         statusIcon = Icons.check_circle;
         break;
@@ -106,9 +105,9 @@ class BillListItem extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (bill.description.isNotEmpty)
+                        if (bill.description?.isNotEmpty == true)
                           Text(
-                            bill.description,
+                            bill.description ?? '',
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 12.sp,

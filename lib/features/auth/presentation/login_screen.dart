@@ -104,6 +104,16 @@ class _LoginScreenState extends State<LoginScreen>
     }
   }
 
+  void _navigateToForgotPassword() async {
+    final email = _emailController.text;
+    // Save the current email to shared preferences for autofill
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('last_email', email);
+    if (mounted) {
+      Navigator.pushNamed(context, '/forgot-password');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -294,9 +304,7 @@ class _LoginScreenState extends State<LoginScreen>
 
                         // Forgot Password Link
                         TextButton(
-                          onPressed: () {
-                            Navigator.pushNamed(context, '/forgot-password');
-                          },
+                          onPressed: _navigateToForgotPassword,
                           style: TextButton.styleFrom(
                             foregroundColor:
                                 isDark ? Colors.white : Colors.blue,
@@ -307,6 +315,7 @@ class _LoginScreenState extends State<LoginScreen>
                               fontFamily: 'Inter',
                               fontSize: 14.sp,
                               fontWeight: FontWeight.w600,
+                              color: isDark ? Colors.white : Colors.blue,
                             ),
                           ),
                         ),
