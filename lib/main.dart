@@ -141,29 +141,80 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(child: _pages[_selectedIndex]),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        selectedLabelStyle: const TextStyle(fontFamily: 'Inter'),
-        unselectedLabelStyle: const TextStyle(fontFamily: 'Inter'),
-        selectedItemColor: Theme.of(context).primaryColor, // Use theme's blue
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.swap_horiz),
-            label: 'Transactions',
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
-            label: 'Bills',
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: Offset(0, -2),
+            ),
+          ],
+        ),
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4.0),
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            children: [
+              BottomNavigationBar(
+                currentIndex: _selectedIndex,
+                onTap: _onItemTapped,
+                backgroundColor: Colors.transparent,
+                elevation: 0,
+                type: BottomNavigationBarType.fixed,
+                selectedLabelStyle: const TextStyle(
+                  fontFamily: 'Inter',
+                  fontWeight: FontWeight.bold,
+                ),
+                unselectedLabelStyle: const TextStyle(fontFamily: 'Inter'),
+                selectedItemColor: Theme.of(context).primaryColor,
+                unselectedItemColor: Colors.grey[400],
+                showUnselectedLabels: false,
+                iconSize: 28,
+                items: const [
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.home),
+                    label: 'Home',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.swap_horiz),
+                    label: 'Transactions',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.receipt_long),
+                    label: 'Bills',
+                  ),
+                  BottomNavigationBarItem(
+                    icon: Icon(Icons.insights),
+                    label: 'Insights',
+                  ),
+                ],
+              ),
+              // Pill indicator
+              Positioned(
+                left:
+                    MediaQuery.of(context).size.width / 8 +
+                    (_selectedIndex * MediaQuery.of(context).size.width / 4) -
+                    16,
+                bottom: 8,
+                child: AnimatedContainer(
+                  duration: Duration(milliseconds: 250),
+                  width: 32,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.insights),
-            label: 'Insights',
-          ),
-        ],
+        ),
       ),
     );
   }
