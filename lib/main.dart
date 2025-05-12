@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'core/theme/app_theme.dart';
 import 'features/shared/widgets/accessible_text.dart';
 import 'features/dashboard/presentation/dashboard_screen.dart';
@@ -44,17 +46,22 @@ void main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
     return ScreenUtilInit(
       designSize: const Size(375, 812),
       minTextAdapt: true,
       builder: (context, child) {
-        final themeProvider = Provider.of<ThemeProvider>(context);
         // Handle text scaling at the app root level
         return AccessibleText(
           child: MaterialApp(
@@ -62,6 +69,14 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.lightTheme,
             darkTheme: AppTheme.darkTheme,
             themeMode: themeProvider.themeMode,
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: const [Locale('en'), Locale('fr'), Locale('es')],
+            locale: _getLocaleFromLanguage(authProvider.currentLanguage),
             initialRoute: '/',
             routes: {
               '/': (context) => const AuthWrapper(),
@@ -151,5 +166,17 @@ class _MainScreenState extends State<MainScreen> {
         ],
       ),
     );
+  }
+}
+
+Locale _getLocaleFromLanguage(String language) {
+  switch (language) {
+    case 'fr':
+      return const Locale('fr');
+    case 'es':
+      return const Locale('es');
+    case 'en':
+    default:
+      return const Locale('en');
   }
 }

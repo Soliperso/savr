@@ -15,8 +15,8 @@ class AuthProvider extends ChangeNotifier {
   bool _isAuthenticated = false;
 
   // Define language and currency management variables
-  String _currentLanguage = 'English';
-  List<String> _availableLanguages = ['English', 'French', 'Spanish'];
+  String _currentLanguage = 'en';
+  List<String> _availableLanguages = ['en', 'fr', 'es'];
   String _currentCurrency = 'USD';
   List<String> _availableCurrencies = ['USD', 'EUR', 'GBP', 'INR'];
 

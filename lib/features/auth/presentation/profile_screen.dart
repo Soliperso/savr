@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
@@ -263,11 +264,115 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _showChangePasswordDialog() {
+    final _currentPasswordController = TextEditingController();
+    final _newPasswordController = TextEditingController();
+    final _confirmPasswordController = TextEditingController();
+    final _formKey = GlobalKey<FormState>();
+    bool _isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Change Password'),
+              content: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: _currentPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Current Password',
+                      ),
+                      validator:
+                          (v) =>
+                              v == null || v.isEmpty
+                                  ? 'Enter current password'
+                                  : null,
+                    ),
+                    TextFormField(
+                      controller: _newPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'New Password',
+                      ),
+                      validator:
+                          (v) =>
+                              v == null || v.length < 6
+                                  ? 'Min 6 characters'
+                                  : null,
+                    ),
+                    TextFormField(
+                      controller: _confirmPasswordController,
+                      obscureText: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm New Password',
+                      ),
+                      validator:
+                          (v) =>
+                              v != _newPasswordController.text
+                                  ? 'Passwords do not match'
+                                  : null,
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed:
+                      _isSubmitting
+                          ? null
+                          : () async {
+                            if (_formKey.currentState?.validate() ?? false) {
+                              setState(() => _isSubmitting = true);
+                              // TODO: Integrate with AuthProvider.changePassword when backend is ready
+                              await Future.delayed(const Duration(seconds: 1));
+                              setState(() => _isSubmitting = false);
+                              if (mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Password changed (demo only)',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                  child:
+                      _isSubmitting
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Text('Change Password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final localizations = AppLocalizations.of(context)!;
 
     final primaryColor = isDark ? AppColors.primaryDark : AppColors.primary;
     final iconColor = isDark ? Colors.white : Colors.black;
@@ -275,7 +380,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Profile',
+          localizations.profile,
           style: TextStyle(
             fontFamily: 'Poppins',
             fontSize: 20.sp,
@@ -307,7 +412,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Semantics(
               header: true,
               child: Text(
-                'Personal Information',
+                localizations.personalInformation,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontFamily: 'Poppins',
                   fontWeight: FontWeight.w600,
@@ -323,7 +428,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   TextFormField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      labelText: 'Name',
+                      labelText: localizations.name,
                       prefixIcon: Icon(Icons.person_outline, size: 24.sp),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.r),
@@ -332,14 +437,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     validator:
                         (value) =>
                             value?.isEmpty ?? true
-                                ? 'Please enter your name'
+                                ? localizations.pleaseEnterYourName
                                 : null,
                   ),
                   SizedBox(height: 16.h),
                   TextFormField(
                     controller: _emailController,
                     decoration: InputDecoration(
-                      labelText: 'Email',
+                      labelText: localizations.email,
                       prefixIcon: Icon(Icons.email_outlined, size: 24.sp),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8.r),
@@ -348,7 +453,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     validator:
                         (value) =>
                             value?.isEmpty ?? true
-                                ? 'Please enter your email'
+                                ? localizations.pleaseEnterYourEmail
                                 : null,
                   ),
                   SizedBox(height: 24.h),
@@ -367,7 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               )
                               : Text(
-                                'Save Changes',
+                                localizations.saveChanges,
                                 style: TextStyle(
                                   fontFamily: 'Poppins',
                                   fontSize: 16.sp,
@@ -383,7 +488,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Settings Section
             SizedBox(height: 32.h),
             Text(
-              'Settings',
+              localizations.settings,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontFamily: 'Poppins',
                 fontWeight: FontWeight.w600,
@@ -403,7 +508,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: isDark ? Colors.white : Colors.black,
                   ),
                   title: Text(
-                    'Change Password',
+                    localizations.changePassword,
                     style: Theme.of(
                       context,
                     ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
@@ -413,15 +518,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     size: 16.sp,
                     color: iconColor,
                   ),
-                  onTap: () {
-                    // Navigate to password change screen or show a dialog
-                  },
+                  onTap: _showChangePasswordDialog,
                 ),
                 Divider(height: 1, color: Colors.grey.shade300, thickness: 0.5),
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Colors.red),
                   title: Text(
-                    'Delete Account',
+                    localizations.deleteAccount,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontFamily: 'Inter',
                       color: Colors.red,
@@ -471,7 +574,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Create a new card section for Languages and Currency
             SizedBox(height: 32.h),
             Text(
-              'Preferences',
+              localizations.preferences,
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontFamily: 'Poppins',
                 fontWeight: FontWeight.w600,
@@ -491,33 +594,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: isDark ? Colors.white : Colors.black,
                     ),
                     title: Text(
-                      'Language',
+                      localizations.language,
                       style: Theme.of(
                         context,
                       ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
                     ),
                     trailing: DropdownButton<String>(
-                      value: null, // Removed default value
-                      // hint: Text('Select Language'),
-                      underline: Container(), // Remove the underline
-                      items:
-                          authProvider.availableLanguages.map((
-                            String language,
-                          ) {
-                            return DropdownMenuItem<String>(
-                              value: language,
-                              child: Text(
-                                language,
-                                style: TextStyle(
-                                  fontSize: 14.sp,
-                                  fontFamily: 'Inter',
+                      value: authProvider.currentLanguage,
+                      underline: Container(),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'en',
+                          child: Text(
+                            'English',
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 14),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'fr',
+                          child: Text(
+                            'Français',
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 14),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'es',
+                          child: Text(
+                            'Español',
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 14),
+                          ),
+                        ),
+                      ],
+                      onChanged: (String? newLanguage) {
+                        if (newLanguage != null &&
+                            newLanguage != authProvider.currentLanguage) {
+                          authProvider.changeLanguage(newLanguage);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                localizations.languageChangedTo(
+                                  newLanguage == 'en'
+                                      ? 'English'
+                                      : newLanguage == 'fr'
+                                      ? 'Français'
+                                      : 'Español',
                                 ),
                               ),
-                            );
-                          }).toList(),
-                      onChanged: (String? newLanguage) {
-                        if (newLanguage != null) {
-                          authProvider.changeLanguage(newLanguage);
+                              backgroundColor: Colors.green.shade100,
+                            ),
+                          );
                         }
                       },
                     ),
@@ -533,7 +658,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: isDark ? Colors.white : Colors.black,
                     ),
                     title: Text(
-                      'Currency',
+                      localizations.currency,
                       style: Theme.of(
                         context,
                       ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
@@ -585,7 +710,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   backgroundColor: Theme.of(context).colorScheme.error,
                 ),
                 child: Text(
-                  'Logout',
+                  localizations.logout,
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 16.sp,

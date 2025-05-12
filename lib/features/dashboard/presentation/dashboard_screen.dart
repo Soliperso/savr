@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../providers/transaction_provider.dart';
+import '../../bills/presentation/add_bill_screen.dart';
+import '../../transactions/presentation/add_transaction_screen.dart';
 import '../widgets/summary_item.dart';
 import '../widgets/recent_transaction_list.dart';
 import '../widgets/pending_bills_list.dart';
@@ -177,10 +180,37 @@ class _DashboardScreenState extends State<DashboardScreen>
             onSelected: (value) {
               switch (value) {
                 case 'add_transaction':
-                  Navigator.pushNamed(context, '/add_transaction');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AddTransactionScreen(),
+                    ),
+                  );
                   break;
                 case 'create_bill':
-                  Navigator.pushNamed(context, '/bills');
+                  final billProvider = Provider.of<BillProvider>(
+                    context,
+                    listen: false,
+                  );
+                  final groups = billProvider.groups;
+                  if (groups.isNotEmpty) {
+                    final defaultGroupId = groups.first.id;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder:
+                            (context) => AddBillScreen(groupId: defaultGroupId),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'No groups available. Please create a group first.',
+                        ),
+                      ),
+                    );
+                  }
                   break;
                 case 'profile':
                   Navigator.push(
@@ -191,9 +221,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                   );
                   break;
                 case 'share':
-                  // TODO: Implement share functionality
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Share coming soon')),
+                  Share.share(
+                    'Check out SavvySplit! Download now: https://savvysplit.app',
                   );
                   break;
               }
