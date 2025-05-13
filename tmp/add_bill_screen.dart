@@ -1,60 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:savr/providers/bill_provider.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/animation.dart';
-import '../../../providers/transaction_provider.dart';
 
-class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+class AddBillScreen extends StatefulWidget {
+  const AddBillScreen({super.key});
 
   @override
-  State<AddTransactionScreen> createState() => _AddTransactionScreenState();
+  State<AddBillScreen> createState() => _AddBillScreenState();
 }
 
-class _AddTransactionScreenState extends State<AddTransactionScreen>
-    with SingleTickerProviderStateMixin {
+class _AddBillScreenState extends State<AddBillScreen> {
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
-  final List<String> _categories = [
-    'General',
-    'Food & Groceries',
-    'Income',
-    'Transportation',
-    'Entertainment',
-    'Health & Fitness',
-    'Shopping',
-    'Bills',
-    'Other',
-  ];
-  String? _selectedCategory = 'General';
   final _noteController = TextEditingController();
   DateTime _selectedDate = DateTime.now();
-  bool _isExpense = true;
   bool _isLoading = false;
-
-  // Category icon mapping
-  final Map<String, IconData> _categoryIcons = {
-    'General': Icons.category,
-    'Food & Groceries': Icons.shopping_basket,
-    'Income': Icons.attach_money,
-    'Transportation': Icons.directions_car,
-    'Entertainment': Icons.movie,
-    'Health & Fitness': Icons.fitness_center,
-    'Shopping': Icons.shopping_cart,
-    'Bills': Icons.receipt_long,
-    'Other': Icons.more_horiz,
-  };
-
-  @override
-  void initState() {
-    super.initState();
-    // Autofocus title field on open
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FocusScope.of(context).requestFocus(_titleFocusNode);
-    });
-  }
 
   // Add focus nodes for keyboard navigation
   final FocusNode _titleFocusNode = FocusNode();
@@ -72,25 +35,20 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(_titleFocusNode);
+    });
+  }
+
   void _pickDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
       lastDate: DateTime(2100),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
-              primary: Theme.of(context).primaryColor,
-              onPrimary: Colors.white,
-              surface: Theme.of(context).cardColor,
-              onSurface: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
@@ -99,40 +57,34 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     }
   }
 
-  void _saveTransaction() async {
+  void _saveBill() {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
       final title = _titleController.text.trim();
       final amount = double.parse(_amountController.text.replaceAll(',', '.'));
-      final category = _selectedCategory ?? _categories.first;
       final note = _noteController.text.trim();
       try {
-        Provider.of<TransactionProvider>(context, listen: false).addTransaction(
-          title,
-          amount,
-          _isExpense,
-          date: _selectedDate,
-          category: category,
-          note: note,
+        Provider.of<BillProvider>(context, listen: false).addBillToGroup(
+          groupId: '', // TODO: set groupId if available
+          title: title,
+          description: note,
+          amount: amount,
+          dueDate: _selectedDate,
+          splitWith: const [],
         );
         if (!mounted) return;
-        HapticFeedback.lightImpact();
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Transaction saved',
-              semanticsLabel: 'Transaction saved',
-            ),
+          const SnackBar(
+            content: Text('Bill saved', semanticsLabel: 'Bill saved'),
           ),
         );
         Navigator.pop(context);
       } catch (e) {
-        HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Failed to save transaction: $e',
-              semanticsLabel: 'Failed to save transaction',
+              'Failed to save bill: $e',
+              semanticsLabel: 'Failed to save bill',
             ),
           ),
         );
@@ -142,6 +94,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     } else {
       HapticFeedback.vibrate();
     }
+  }
+
+  // Use a custom adaptive color for all text (black on light, white on dark)
+  Color getCustomTextColor(BuildContext context) {
+    final brightness = Theme.of(context).brightness;
+    return brightness == Brightness.dark ? Colors.white : Colors.black;
   }
 
   @override
@@ -157,13 +115,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         isDark
             ? theme.colorScheme.surfaceVariant.withOpacity(0.18)
             : theme.colorScheme.surfaceVariant.withOpacity(0.10);
-    final now = DateTime.now();
-    final isFuture = _selectedDate.isAfter(now);
-    final isPast = _selectedDate.isBefore(
-      DateTime(now.year, now.month, now.day),
-    );
 
-    // For accessibility: semantic labels for all fields/buttons
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
@@ -171,14 +123,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
         appBar: AppBar(
           backgroundColor: theme.scaffoldBackgroundColor,
           title: Semantics(
-            label: 'Add Transaction',
+            label: 'Add Bill',
             child: Text(
-              'Add Transaction',
+              'Add Bill',
               style: TextStyle(
                 fontFamily: 'Poppins',
                 fontSize: 20.sp,
                 fontWeight: FontWeight.w600,
-                color: theme.colorScheme.onBackground,
+                color: getCustomTextColor(context),
               ),
             ),
           ),
@@ -191,14 +143,14 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.pop(context),
                 tooltip: 'Close',
-                color: theme.colorScheme.onBackground,
+                color: getCustomTextColor(context),
               ),
             ),
           ],
         ),
         body: Center(
           child: SingleChildScrollView(
-            padding: EdgeInsets.all(16.w),
+            padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
             child: Card(
               elevation: isDark ? 0 : 3,
               color: cardColor,
@@ -214,82 +166,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Semantics(
-                        label: 'Transaction Type',
-                        child: Text(
-                          'Transaction Type',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 8.h),
-                      Semantics(
-                        label:
-                            _isExpense ? 'Expense selected' : 'Income selected',
-                        toggled: true,
-                        child: SegmentedButton<bool>(
-                          segments: [
-                            ButtonSegment<bool>(
-                              value: true,
-                              label: Text(
-                                'Expense',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                ),
-                              ),
-                              icon: const Icon(Icons.remove_circle_outline),
-                            ),
-                            ButtonSegment<bool>(
-                              value: false,
-                              label: Text(
-                                'Income',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                ),
-                              ),
-                              icon: const Icon(Icons.add_circle_outline),
-                            ),
-                          ],
-                          selected: {_isExpense},
-                          onSelectionChanged: (Set<bool> newSelection) {
-                            setState(() {
-                              _isExpense = newSelection.first;
-                            });
-                          },
-                          style: ButtonStyle(
-                            backgroundColor:
-                                MaterialStateProperty.resolveWith<Color?>((
-                                  states,
-                                ) {
-                                  if (states.contains(MaterialState.selected)) {
-                                    if (_isExpense) {
-                                      return Colors.red.withOpacity(0.13);
-                                    } else {
-                                      return Colors.green.withOpacity(0.13);
-                                    }
-                                  }
-                                  return inputFillColor;
-                                }),
-                            foregroundColor: MaterialStateProperty.all(
-                              theme.colorScheme.onSurface,
-                            ),
-                            shape: MaterialStateProperty.all(
-                              RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.r),
-                              ),
-                            ),
-                            overlayColor: MaterialStateProperty.all(
-                              theme.colorScheme.primary.withOpacity(0.08),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: 16.h),
-                      Semantics(
                         label: 'Title',
                         textField: true,
                         child: TextFormField(
@@ -300,6 +176,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             labelStyle: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 14.sp,
+                              color: getCustomTextColor(context),
                             ),
                             filled: true,
                             fillColor: inputFillColor,
@@ -318,11 +195,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 width: 1.5,
                               ),
                             ),
-                            prefixIcon: const Icon(Icons.title),
                           ),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
+                            color: getCustomTextColor(context),
                           ),
                           validator: (value) {
                             if (value == null || value.isEmpty) {
@@ -351,11 +228,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             labelStyle: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 14.sp,
+                              color: getCustomTextColor(context),
                             ),
                             prefixText: '\u0024 ',
                             prefixStyle: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16.sp,
+                              color: getCustomTextColor(context),
                             ),
                             filled: true,
                             fillColor: inputFillColor,
@@ -374,11 +253,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 width: 1.5,
                               ),
                             ),
-                            // Removed prefixIcon to avoid duplicate icon
                           ),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
+                            color: getCustomTextColor(context),
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
@@ -402,88 +281,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                           onFieldSubmitted: (_) {
                             FocusScope.of(context).requestFocus(_noteFocusNode);
                           },
-                          inputFormatters: [
-                            FilteringTextInputFormatter.allow(
-                              RegExp(r'^[0-9]*[.,]?[0-9]{0,2}\u0000?'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      SizedBox(height: 16.h),
-                      Semantics(
-                        label: 'Category',
-                        child: DropdownButtonFormField<String>(
-                          dropdownColor: theme.cardColor,
-                          value: _selectedCategory,
-                          items:
-                              _categories
-                                  .map(
-                                    (cat) => DropdownMenuItem(
-                                      value: cat,
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            _categoryIcons[cat] ??
-                                                Icons.category,
-                                            size: 18.sp,
-                                            color: theme.colorScheme.primary,
-                                          ),
-                                          SizedBox(width: 8.w),
-                                          Text(
-                                            cat,
-                                            style: TextStyle(
-                                              color:
-                                                  theme.colorScheme.onSurface,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) => setState(() => _selectedCategory = val),
-                          decoration: InputDecoration(
-                            labelText: 'Category',
-                            labelStyle: TextStyle(
-                              fontFamily: 'Inter',
-                              fontSize: 14.sp,
-                            ),
-                            filled: true,
-                            fillColor: inputFillColor,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12.r),
-                              borderSide: BorderSide(color: borderColor),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12.r),
-                              borderSide: BorderSide(color: borderColor),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12.r),
-                              borderSide: BorderSide(
-                                color: theme.colorScheme.primary,
-                                width: 1.5,
-                              ),
-                            ),
-                            // Removed prefixIcon to avoid duplicate icon
-                          ),
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            color: theme.colorScheme.onSurface,
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a category';
-                            }
-                            return null;
-                          },
-                          iconEnabledColor: theme.colorScheme.onSurface,
-                          iconDisabledColor: theme.colorScheme.onSurface
-                              .withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(14.r),
-                          menuMaxHeight: 300.h,
                         ),
                       ),
                       SizedBox(height: 16.h),
@@ -498,6 +295,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             labelStyle: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 14.sp,
+                              color: getCustomTextColor(context),
                             ),
                             filled: true,
                             fillColor: inputFillColor,
@@ -516,13 +314,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 width: 1.5,
                               ),
                             ),
-                            prefixIcon: const Icon(
-                              Icons.sticky_note_2_outlined,
-                            ),
                           ),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
+                            color: getCustomTextColor(context),
                           ),
                           maxLines: 2,
                           textInputAction: TextInputAction.done,
@@ -538,22 +334,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             child: Semantics(
                               label: 'Date',
                               child: Text(
-                                // Use locale-aware date formatting
-                                'Date:  ${MaterialLocalizations.of(context).formatMediumDate(_selectedDate)}',
+                                'Date: ${MaterialLocalizations.of(context).formatMediumDate(_selectedDate)}',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 14.sp,
-                                  color:
-                                      isPast
-                                          ? Colors.red
-                                          : isFuture
-                                          ? Colors.green
-                                          : theme.colorScheme.onSurface
-                                              .withOpacity(0.8),
-                                  fontWeight:
-                                      isPast || isFuture
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
+                                  color: getCustomTextColor(
+                                    context,
+                                  ).withOpacity(0.8),
                                 ),
                               ),
                             ),
@@ -564,7 +351,12 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             child: TextButton.icon(
                               onPressed: _pickDate,
                               icon: const Icon(Icons.calendar_today_outlined),
-                              label: const Text('Pick Date'),
+                              label: Text(
+                                'Pick Date',
+                                style: TextStyle(
+                                  color: getCustomTextColor(context),
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -577,17 +369,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                           scale: _isLoading ? 0.97 : 1.0,
                           duration: const Duration(milliseconds: 120),
                           child: Semantics(
-                            label:
-                                _isLoading ? 'Saving...' : 'Save Transaction',
+                            label: _isLoading ? 'Saving...' : 'Save Bill',
                             button: true,
                             child: ElevatedButton.icon(
-                              onPressed:
-                                  _isLoading
-                                      ? null
-                                      : () async {
-                                        HapticFeedback.mediumImpact();
-                                        _saveTransaction();
-                                      },
+                              onPressed: _isLoading ? null : _saveBill,
                               icon:
                                   _isLoading
                                       ? SizedBox(
@@ -601,12 +386,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                               label: AnimatedSwitcher(
                                 duration: const Duration(milliseconds: 200),
                                 child: Text(
-                                  _isLoading ? 'Saving...' : 'Save Transaction',
+                                  _isLoading ? 'Saving...' : 'Save Bill',
                                   key: ValueKey(_isLoading),
                                   style: TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 16.sp,
                                     fontWeight: FontWeight.w600,
+                                    color: getCustomTextColor(context),
                                   ),
                                 ),
                               ),
@@ -636,12 +422,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                               _amountController.clear();
                               _noteController.clear();
                               setState(() {
-                                _selectedCategory = _categories.first;
                                 _selectedDate = DateTime.now();
-                                _isExpense = true;
                               });
                             },
-                            child: Text('Clear Form'),
+                            child: Text(
+                              'Clear Form',
+                              style: TextStyle(
+                                color: getCustomTextColor(context),
+                              ),
+                            ),
                           ),
                         ),
                     ],

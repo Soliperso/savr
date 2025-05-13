@@ -71,14 +71,25 @@ class TransactionProvider extends ChangeNotifier {
         );
   }
 
-  void addTransaction(String title, double amount, bool isExpense) {
-    final now = DateTime.now();
+  void addTransaction(
+    String title,
+    double amount,
+    bool isExpense, {
+    DateTime? date,
+    String? category,
+    String? note,
+  }) {
+    final now = date ?? DateTime.now();
     final dateStr = DateFormat('MMM d').format(now);
+    final fullDateStr = DateFormat('yyyy-MM-dd').format(now);
 
     final transaction = {
       'title': title,
       'amount': isExpense ? -amount : amount,
       'date': dateStr,
+      'fullDate': fullDateStr,
+      'category': category ?? 'General',
+      'note': note ?? '',
     };
 
     _transactions.insert(0, transaction); // Add at the beginning of the list

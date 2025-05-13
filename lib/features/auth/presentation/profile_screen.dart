@@ -376,6 +376,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final primaryColor = isDark ? AppColors.primaryDark : AppColors.primary;
     final iconColor = isDark ? Colors.white : Colors.black;
+    final cardColor = isDark ? Colors.grey[900] : Colors.white;
+    final borderColor = isDark ? Colors.grey[800] : Colors.grey[200];
 
     return Scaffold(
       appBar: AppBar(
@@ -391,6 +393,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: isDark ? Colors.black : Colors.white,
         elevation: 0,
         iconTheme: IconThemeData(color: iconColor),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 24.h),
@@ -398,13 +401,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Profile Picture Section
-            ProfilePictureWidget(
-              imageProvider: _getProfileImage(authProvider),
-              isUploading: _isUploading,
-              onEdit: _showImageSourceActionSheet,
-              primaryColor: primaryColor,
-              iconColor: iconColor,
-              userName: authProvider.userName,
+            Center(
+              child: ProfilePictureWidget(
+                imageProvider: _getProfileImage(authProvider),
+                isUploading: _isUploading,
+                onEdit: _showImageSourceActionSheet,
+                primaryColor: primaryColor,
+                iconColor: iconColor,
+                userName: authProvider.userName,
+              ),
             ),
             SizedBox(height: 32.h),
 
@@ -421,67 +426,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             SizedBox(height: 16.h),
-            Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  TextFormField(
-                    controller: _nameController,
-                    decoration: InputDecoration(
-                      labelText: localizations.name,
-                      prefixIcon: Icon(Icons.person_outline, size: 24.sp),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.r),
+            Card(
+              color: cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                side: BorderSide(color: borderColor ?? Colors.grey, width: 1.1),
+              ),
+              elevation: isDark ? 0 : 2,
+              child: Padding(
+                padding: EdgeInsets.all(16.w),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: _nameController,
+                        decoration: InputDecoration(
+                          labelText: localizations.name,
+                          prefixIcon: Icon(Icons.person_outline, size: 24.sp),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                        ),
+                        validator:
+                            (value) =>
+                                value?.isEmpty ?? true
+                                    ? localizations.pleaseEnterYourName
+                                    : null,
+                        textInputAction: TextInputAction.next,
                       ),
-                    ),
-                    validator:
-                        (value) =>
-                            value?.isEmpty ?? true
-                                ? localizations.pleaseEnterYourName
-                                : null,
-                  ),
-                  SizedBox(height: 16.h),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: localizations.email,
-                      prefixIcon: Icon(Icons.email_outlined, size: 24.sp),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8.r),
+                      SizedBox(height: 16.h),
+                      TextFormField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          labelText: localizations.email,
+                          prefixIcon: Icon(Icons.email_outlined, size: 24.sp),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                        ),
+                        validator:
+                            (value) =>
+                                value?.isEmpty ?? true
+                                    ? localizations.pleaseEnterYourEmail
+                                    : null,
+                        textInputAction: TextInputAction.done,
+                        keyboardType: TextInputType.emailAddress,
                       ),
-                    ),
-                    validator:
-                        (value) =>
-                            value?.isEmpty ?? true
-                                ? localizations.pleaseEnterYourEmail
-                                : null,
+                      SizedBox(height: 24.h),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed:
+                              _isUploading
+                                  ? null
+                                  : () => _saveProfile(authProvider),
+                          icon:
+                              _isUploading
+                                  ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                  : const Icon(Icons.save_alt_rounded),
+                          label: Text(
+                            localizations.saveChanges,
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10.r),
+                            ),
+                            elevation: isDark ? 0 : 2,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 24.h),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed:
-                          _isUploading
-                              ? null
-                              : () => _saveProfile(authProvider),
-                      child:
-                          _isUploading
-                              ? const CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  Colors.white,
-                                ),
-                              )
-                              : Text(
-                                localizations.saveChanges,
-                                style: TextStyle(
-                                  fontFamily: 'Poppins',
-                                  fontSize: 16.sp,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
 
@@ -571,7 +602,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
 
-            // Create a new card section for Languages and Currency
+            // Preferences Section
             SizedBox(height: 32.h),
             Text(
               localizations.preferences,
@@ -583,9 +614,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             SizedBox(height: 16.h),
             Card(
+              color: cardColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12.r),
+                side: BorderSide(color: borderColor ?? Colors.grey, width: 1.1),
               ),
+              elevation: isDark ? 0 : 2,
               child: Column(
                 children: [
                   ListTile(
@@ -631,15 +665,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           authProvider.changeLanguage(newLanguage);
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                localizations.languageChangedTo(
-                                  newLanguage == 'en'
-                                      ? 'English'
-                                      : newLanguage == 'fr'
-                                      ? 'Français'
-                                      : 'Español',
-                                ),
-                              ),
+                              content: Text(localizations.language),
                               backgroundColor: Colors.green.shade100,
                             ),
                           );
@@ -664,9 +690,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
                     ),
                     trailing: DropdownButton<String>(
-                      value: null, // Removed default value
-                      // hint: Text('Select Currency'),
-                      underline: Container(), // Remove the underline
+                      value: authProvider.currentCurrency,
+                      underline: Container(),
                       items:
                           authProvider.availableCurrencies.map((
                             String currency,
@@ -675,10 +700,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               value: currency,
                               child: Text(
                                 currency,
-                                style: TextStyle(
-                                  fontSize: 14.sp,
-                                  fontFamily: 'Inter',
-                                ),
+                                style: TextStyle(fontFamily: 'Inter'),
                               ),
                             );
                           }).toList(),
@@ -697,7 +719,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(height: 32.h),
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
                 onPressed: () async {
                   await authProvider.logout();
                   if (mounted) {
@@ -706,16 +728,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ).pushNamedAndRemoveUntil('/login', (route) => false);
                   }
                 },
+                icon: const Icon(Icons.logout),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10.r),
+                  ),
+                  elevation: isDark ? 0 : 2,
                 ),
-                child: Text(
+                label: Text(
                   localizations.logout,
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 16.sp,
                     fontWeight: FontWeight.w500,
-                    color: Colors.white,
                   ),
                 ),
               ),

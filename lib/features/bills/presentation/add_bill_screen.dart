@@ -95,6 +95,16 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final cardColor = isDark ? Colors.grey[900] : Colors.white;
+    final borderColor = isDark ? Colors.grey[800] : Colors.grey[200];
+    final inputFillColor =
+        isDark
+            ? theme.colorScheme.surfaceVariant.withOpacity(0.18)
+            : theme.colorScheme.surfaceVariant.withOpacity(0.10);
+    final primaryColor = Color(_group.color ?? 0xFF000000);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -103,9 +113,13 @@ class _AddBillScreenState extends State<AddBillScreen> {
             fontFamily: 'Poppins',
             fontSize: 20.sp,
             fontWeight: FontWeight.w600,
+            color: primaryColor,
           ),
         ),
+        backgroundColor: isDark ? Colors.black : Colors.white,
         elevation: 0,
+        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
+        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16.w),
@@ -114,82 +128,115 @@ class _AddBillScreenState extends State<AddBillScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Group name display
-              Text(
-                'For ${_group.name}',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14.sp,
-                  color: Colors.grey[600],
+              Card(
+                color: cardColor,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                  side: BorderSide(
+                    color: borderColor ?? Colors.grey,
+                    width: 1.1,
+                  ),
+                ),
+                elevation: isDark ? 0 : 2,
+                child: Padding(
+                  padding: EdgeInsets.all(16.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'For ${_group.name}',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      SizedBox(height: 16.h),
+                      TextFormField(
+                        controller: _titleController,
+                        decoration: InputDecoration(
+                          labelText: 'Bill Title',
+                          labelStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          prefixIcon: const Icon(Icons.description),
+                          filled: true,
+                          fillColor: inputFillColor,
+                        ),
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter a title';
+                          }
+                          return null;
+                        },
+                        textInputAction: TextInputAction.next,
+                      ),
+                      SizedBox(height: 16.h),
+                      TextFormField(
+                        controller: _descriptionController,
+                        decoration: InputDecoration(
+                          labelText: 'Description (Optional)',
+                          labelStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          prefixIcon: const Icon(Icons.notes),
+                          filled: true,
+                          fillColor: inputFillColor,
+                        ),
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
+                        maxLines: 2,
+                        textInputAction: TextInputAction.next,
+                      ),
+                      SizedBox(height: 16.h),
+                      TextFormField(
+                        controller: _amountController,
+                        decoration: InputDecoration(
+                          labelText: 'Amount',
+                          labelStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                          ),
+                          prefixText: '\u0024 ',
+                          prefixStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10.r),
+                          ),
+                          prefixIcon: const Icon(Icons.attach_money),
+                          filled: true,
+                          fillColor: inputFillColor,
+                        ),
+                        style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter an amount';
+                          }
+                          if (double.tryParse(value) == null) {
+                            return 'Please enter a valid number';
+                          }
+                          return null;
+                        },
+                        textInputAction: TextInputAction.next,
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildDatePicker(),
+                    ],
+                  ),
                 ),
               ),
-              SizedBox(height: 16.h),
-
-              // Bill title
-              TextFormField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: 'Bill Title',
-                  labelStyle: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.description),
-                ),
-                style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
-                },
-              ),
-
-              SizedBox(height: 16.h),
-
-              // Bill description
-              TextFormField(
-                controller: _descriptionController,
-                decoration: InputDecoration(
-                  labelText: 'Description (Optional)',
-                  labelStyle: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.notes),
-                ),
-                style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                maxLines: 2,
-              ),
-
-              SizedBox(height: 16.h),
-
-              // Amount
-              TextFormField(
-                controller: _amountController,
-                decoration: InputDecoration(
-                  labelText: 'Amount',
-                  labelStyle: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
-                  prefixText: '\$ ',
-                  prefixStyle: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                  border: const OutlineInputBorder(),
-                  prefixIcon: const Icon(Icons.attach_money),
-                ),
-                style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter an amount';
-                  }
-                  if (double.tryParse(value) == null) {
-                    return 'Please enter a valid number';
-                  }
-                  return null;
-                },
-              ),
-
-              SizedBox(height: 16.h),
-
-              _buildDatePicker(),
-
               SizedBox(height: 24.h),
-
               // Split method selector
               Text(
                 'Split Method',
@@ -197,6 +244,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                   fontFamily: 'Inter',
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
+                  color: primaryColor,
                 ),
               ),
               SizedBox(height: 8.h),
@@ -225,15 +273,29 @@ class _AddBillScreenState extends State<AddBillScreen> {
                     _isSplitEqually = selection.first;
                   });
                 },
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.resolveWith<Color?>((
+                    states,
+                  ) {
+                    if (states.contains(MaterialState.selected)) {
+                      return primaryColor.withOpacity(0.13);
+                    }
+                    return inputFillColor;
+                  }),
+                  foregroundColor: MaterialStateProperty.all(primaryColor),
+                  shape: MaterialStateProperty.all(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
+                    ),
+                  ),
+                  overlayColor: MaterialStateProperty.all(
+                    primaryColor.withOpacity(0.08),
+                  ),
+                ),
               ),
-
               SizedBox(height: 16.h),
-
-              // Custom split section
               _buildCustomSplitSection(),
-
               SizedBox(height: 24.h),
-
               // Select friends section
               Text(
                 'Split With',
@@ -241,13 +303,12 @@ class _AddBillScreenState extends State<AddBillScreen> {
                   fontFamily: 'Inter',
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
+                  color: primaryColor,
                 ),
               ),
               SizedBox(height: 8.h),
               _buildFriendSelector(),
-
               SizedBox(height: 16.h),
-
               // Invite by email section
               Text(
                 'Invite Others',
@@ -255,6 +316,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                   fontFamily: 'Inter',
                   fontSize: 16.sp,
                   fontWeight: FontWeight.w500,
+                  color: primaryColor,
                 ),
               ),
               SizedBox(height: 8.h),
@@ -265,12 +327,13 @@ class _AddBillScreenState extends State<AddBillScreen> {
                       controller: _emailController,
                       decoration: InputDecoration(
                         hintText: 'Enter email address',
-                        hintStyle: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
+                        hintStyle: TextStyle(fontSize: 14.sp),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10.r),
                         ),
-                        border: const OutlineInputBorder(),
                         prefixIcon: const Icon(Icons.email),
+                        filled: true,
+                        fillColor: inputFillColor,
                       ),
                       style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
                       keyboardType: TextInputType.emailAddress,
@@ -281,7 +344,7 @@ class _AddBillScreenState extends State<AddBillScreen> {
                     icon: const Icon(Icons.send),
                     onPressed: _inviteByEmail,
                     style: IconButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
+                      backgroundColor: primaryColor,
                       foregroundColor: Colors.white,
                     ),
                   ),
