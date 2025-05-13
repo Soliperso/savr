@@ -12,7 +12,7 @@ class RecentTransactionList extends StatelessWidget {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: transactions.length,
+      itemCount: transactions.length > 5 ? 5 : transactions.length,
       separatorBuilder:
           (_, __) => Divider(
             height: 1,
@@ -26,37 +26,103 @@ class RecentTransactionList extends StatelessWidget {
         double amount = tx['amount'] as double;
         bool isNegative = amount < 0;
         String displayAmount =
-            (isNegative ? '- ' : '+ ') + '\$${amount.abs().toStringAsFixed(1)}';
-
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: AppColors.primary.withOpacity(0.1),
-            child: Icon(Icons.monetization_on, color: AppColors.primary),
-          ),
-          title: Text(
-            tx['title'] as String,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w500,
+            (isNegative ? '- ' : '+ ') + '\$${amount.abs().toStringAsFixed(2)}';
+        IconData icon;
+        Color iconColor;
+        // Simple category icon logic (expand as needed)
+        switch ((tx['category'] ?? '').toString().toLowerCase()) {
+          case 'food & groceries':
+            icon = Icons.shopping_cart;
+            iconColor = Colors.orangeAccent;
+            break;
+          case 'income':
+            icon = Icons.attach_money;
+            iconColor = Colors.green;
+            break;
+          case 'transportation':
+            icon = Icons.directions_car;
+            iconColor = Colors.blueAccent;
+            break;
+          case 'entertainment':
+            icon = Icons.movie;
+            iconColor = Colors.purple;
+            break;
+          case 'health & fitness':
+            icon = Icons.fitness_center;
+            iconColor = Colors.redAccent;
+            break;
+          default:
+            icon = isNegative ? Icons.arrow_downward : Icons.arrow_upward;
+            iconColor =
+                isNegative ? AppColors.expenseRed : AppColors.incomeGreen;
+        }
+        // Date formatting: show Today, Yesterday, or date
+        String dateLabel = tx['fullDate'] == null ? tx['date'] as String : '';
+        if (tx['fullDate'] != null) {
+          final txDate = DateTime.tryParse(tx['fullDate']);
+          if (txDate != null) {
+            final now = DateTime.now();
+            final today = DateTime(now.year, now.month, now.day);
+            final txDay = DateTime(txDate.year, txDate.month, txDate.day);
+            if (txDay == today) {
+              dateLabel = 'Today';
+            } else if (txDay == today.subtract(const Duration(days: 1))) {
+              dateLabel = 'Yesterday';
+            } else {
+              dateLabel = tx['date'] as String;
+            }
+          }
+        }
+        return InkWell(
+          borderRadius: BorderRadius.circular(12.r),
+          onTap: () {
+            // TODO: Navigate to transaction details
+          },
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: iconColor.withOpacity(0.13),
+              child: Icon(icon, color: iconColor),
             ),
-          ),
-          subtitle: Text(
-            tx['date'] as String,
-            style: TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 12.sp,
-              color: AppColors.gray,
+            title: Text(
+              tx['title'] as String,
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          trailing: Text(
-            displayAmount,
-            style: TextStyle(
-              fontFamily: 'Poppins',
-              fontSize: 16.sp,
-              fontWeight: FontWeight.w600,
-              color: isNegative ? AppColors.expenseRed : AppColors.incomeGreen,
+            subtitle: Text(
+              '${tx['category'] ?? ''} • $dateLabel',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 12.sp,
+                color: Theme.of(context).hintColor,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
+            trailing: Text(
+              displayAmount,
+              style: TextStyle(
+                fontFamily: 'Poppins',
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+                color:
+                    isNegative ? AppColors.expenseRed : AppColors.incomeGreen,
+              ),
+            ),
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: 12.w,
+              vertical: 2.h,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.r),
+            ),
+            onLongPress: () {
+              // TODO: Add swipe/long-press actions if desired
+            },
           ),
         );
       },

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
 
 class PendingBillsList extends StatelessWidget {
@@ -10,8 +9,6 @@ class PendingBillsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         return Container(
@@ -28,23 +25,18 @@ class PendingBillsList extends StatelessWidget {
           ),
           child: ConstrainedBox(
             constraints: BoxConstraints(maxHeight: constraints.maxHeight),
-            child: ListView.separated(
+            child: ListView.builder(
               shrinkWrap: true,
-              physics: const ClampingScrollPhysics(),
-              itemCount: bills.length,
-              separatorBuilder:
-                  (_, __) => Divider(
-                    height: 1,
-                    color:
-                        Theme.of(context).brightness == Brightness.dark
-                            ? Colors.grey[800]
-                            : Colors.grey[200],
-                  ),
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount:
+                  bills.length >= 3
+                      ? (bills.length > 4 ? 4 : bills.length)
+                      : bills.length,
               itemBuilder: (context, index) {
                 final bill = bills[index];
                 double amount = bill['amount'] as double;
-                String displayAmount = '\$${amount.toStringAsFixed(1)}';
-
+                double paid = (bill['paidAmount'] ?? 0).toDouble();
+                String displayAmount = '\$${amount.toStringAsFixed(2)}';
                 final dueRaw = bill['due'] as String;
                 DateTime? dueDate;
                 try {
@@ -52,41 +44,46 @@ class PendingBillsList extends StatelessWidget {
                 } catch (_) {
                   dueDate = null;
                 }
-                String formattedDue =
-                    dueDate != null
-                        ? DateFormat.yMMMd().format(dueDate)
-                        : dueRaw;
-
-                // Use enhanced summary card style for each bill
-                return Container(
-                  margin: EdgeInsets.symmetric(vertical: 6.h, horizontal: 8.w),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.warningOrange.withOpacity(0.14),
-                        AppColors.warningOrangeDark.withOpacity(0.10),
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                    borderRadius: BorderRadius.circular(12.r),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.03),
-                        blurRadius: 6,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
+                String dueLabel = dueRaw;
+                if (dueDate != null) {
+                  final now = DateTime(2025, 5, 13);
+                  final today = DateTime(now.year, now.month, now.day);
+                  final dueDay = DateTime(
+                    dueDate.year,
+                    dueDate.month,
+                    dueDate.day,
+                  );
+                  final days = dueDay.difference(today).inDays;
+                  if (days == 0) {
+                    dueLabel = 'Today';
+                  } else if (days == 1) {
+                    dueLabel = 'Tomorrow';
+                  } else if (days < 0) {
+                    dueLabel = 'Overdue by ${-days} day${-days > 1 ? 's' : ''}';
+                  } else {
+                    dueLabel = 'In $days day${days > 1 ? 's' : ''}';
+                  }
+                }
+                Color chipColor;
+                if (dueDate != null && dueDate.isBefore(DateTime.now())) {
+                  chipColor = Colors.redAccent;
+                } else if (dueDate != null &&
+                    dueDate.difference(DateTime.now()).inDays <= 2) {
+                  chipColor = Colors.orangeAccent;
+                } else {
+                  chipColor = AppColors.warningOrange;
+                }
+                final isPartiallyPaid = paid > 0 && paid < amount;
+                final progress = (paid / amount).clamp(0.0, 1.0);
+                return InkWell(
+                  borderRadius: BorderRadius.circular(12.r),
+                  onTap: () {
+                    // TODO: Navigate to bill details/payment
+                  },
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: AppColors.warningOrange.withOpacity(
-                        0.13,
-                      ),
-                      child: const Icon(
-                        Icons.receipt_long,
-                        color: AppColors.warningOrange,
-                      ),
+                      backgroundColor: chipColor.withOpacity(0.13),
+                      child: Icon(Icons.receipt_long, color: chipColor),
                     ),
                     title: Text(
                       bill['title'] as String,
@@ -94,36 +91,51 @@ class PendingBillsList extends StatelessWidget {
                         fontFamily: 'Inter',
                         fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
-                        color: Theme.of(context).colorScheme.onSurface,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    subtitle: Text(
-                      'Due: $formattedDue',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 12.sp,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withOpacity(0.7),
-                      ),
+                    subtitle: Row(
+                      children: [
+                        Text(
+                          dueLabel,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            color: chipColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (isPartiallyPaid) ...[
+                          SizedBox(width: 8.w),
+                          Expanded(
+                            child: LinearProgressIndicator(
+                              value: progress,
+                              minHeight: 6,
+                              backgroundColor: chipColor.withOpacity(0.10),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                chipColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     trailing: Text(
                       displayAmount,
                       style: TextStyle(
                         fontFamily: 'Poppins',
-                        fontSize: 14.sp,
-                        color:
-                            isDark
-                                ? AppColors.warningOrangeDark
-                                : AppColors.warningOrange,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.bold,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withOpacity(0.10),
-                            blurRadius: 2,
-                          ),
-                        ],
+                        color: chipColor,
                       ),
+                    ),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12.w,
+                      vertical: 2.h,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12.r),
                     ),
                   ),
                 );
