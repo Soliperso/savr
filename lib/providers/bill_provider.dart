@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:savr/models/bill.dart';
 import 'package:savr/models/group.dart';
+import 'package:savr/models/payment.dart';
 
 class BillProvider extends ChangeNotifier {
   final List<Group> _groups = [
@@ -34,6 +35,9 @@ class BillProvider extends ChangeNotifier {
       status: 'pending',
       paid: false,
       paidBy: const [],
+      category: 'Utilities',
+      paidAmount: 0.0,
+      paymentHistory: [],
     ),
     Bill(
       id: '2',
@@ -46,6 +50,9 @@ class BillProvider extends ChangeNotifier {
       status: 'pending',
       paid: false,
       paidBy: const [],
+      category: 'Utilities',
+      paidAmount: 0.0,
+      paymentHistory: [],
     ),
     Bill(
       id: '3',
@@ -58,6 +65,9 @@ class BillProvider extends ChangeNotifier {
       status: 'pending',
       paid: false,
       paidBy: const [],
+      category: 'Rent',
+      paidAmount: 0.0,
+      paymentHistory: [],
     ),
     Bill(
       id: '4',
@@ -70,6 +80,9 @@ class BillProvider extends ChangeNotifier {
       status: 'overdue',
       paid: false,
       paidBy: const [],
+      category: 'Travel',
+      paidAmount: 0.0,
+      paymentHistory: [],
     ),
     Bill(
       id: '5',
@@ -82,6 +95,17 @@ class BillProvider extends ChangeNotifier {
       status: 'paid',
       paid: true,
       paidBy: ['Lisa', 'David'],
+      category: 'Transportation',
+      paidAmount: 150.0,
+      paymentHistory: [
+        Payment(
+          id: 'p1',
+          amount: 150.0,
+          method: 'Credit Card',
+          date: DateTime.parse('2025-05-01'),
+          paidBy: 'Lisa',
+        ),
+      ],
     ),
   ];
 
@@ -210,7 +234,23 @@ class BillProvider extends ChangeNotifier {
   void markAsPaid(String id) {
     final index = _bills.indexWhere((bill) => bill.id == id);
     if (index != -1) {
-      _bills[index] = _bills[index].copyWith(status: 'paid', paid: true);
+      final bill = _bills[index];
+      final payment = Payment(
+        id: 'p${DateTime.now().millisecondsSinceEpoch}',
+        amount: bill.amount - (bill.paidAmount ?? 0),
+        method: 'Full Payment',
+        date: DateTime.now(),
+      );
+      
+      final paymentHistory = List<Payment>.from(bill.paymentHistory ?? []);
+      paymentHistory.add(payment);
+      
+      _bills[index] = bill.copyWith(
+        status: 'paid', 
+        paid: true,
+        paidAmount: bill.amount,
+        paymentHistory: paymentHistory,
+      );
       notifyListeners();
     }
   }
@@ -282,5 +322,47 @@ class BillProvider extends ChangeNotifier {
     ];
 
     return colors[_groups.length % colors.length];
+  }
+  
+  void addPayment(String billId, double amount, String method, DateTime date) {
+    final index = _bills.indexWhere((bill) => bill.id == billId);
+    if (index != -1) {
+      final bill = _bills[index];
+      
+      // Create a new payment
+      final payment = Payment(
+        id: 'p${DateTime.now().millisecondsSinceEpoch}',
+        amount: amount,
+        method: method,
+        date: date,
+      );
+      
+      // Add to payment history
+      final paymentHistory = List<Payment>.from(bill.paymentHistory ?? []);
+      paymentHistory.add(payment);
+      
+      // Calculate new paid amount
+      final paidAmount = (bill.paidAmount ?? 0) + amount;
+      
+      // Update bill status if fully paid
+      final bool isFullyPaid = paidAmount >= bill.amount;
+      
+      _bills[index] = bill.copyWith(
+        status: isFullyPaid ? 'paid' : bill.status,
+        paid: isFullyPaid,
+        paidAmount: paidAmount,
+        paymentHistory: paymentHistory,
+      );
+      
+      notifyListeners();
+    }
+  }
+  
+  double getRemainingAmount(String billId) {
+    final bill = getBillById(billId);
+    if (bill != null) {
+      return bill.amount - (bill.paidAmount ?? 0);
+    }
+    return 0.0;
   }
 }

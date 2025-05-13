@@ -21,6 +21,12 @@ Bill _$BillFromJson(Map<String, dynamic> json) => Bill(
   ),
   paid: json['paid'] as bool,
   paidBy: (json['paidBy'] as List<dynamic>).map((e) => e as String).toList(),
+  category: json['category'] as String?,
+  paidAmount: (json['paidAmount'] as num?)?.toDouble(),
+  paymentHistory:
+      (json['paymentHistory'] as List<dynamic>?)
+          ?.map((e) => Payment.fromJson(e as Map<String, dynamic>))
+          .toList(),
 );
 
 Map<String, dynamic> _$BillToJson(Bill instance) => <String, dynamic>{
@@ -35,4 +41,7 @@ Map<String, dynamic> _$BillToJson(Bill instance) => <String, dynamic>{
   'customSplits': instance.customSplits,
   'paid': instance.paid,
   'paidBy': instance.paidBy,
+  'category': instance.category,
+  'paidAmount': instance.paidAmount,
+  'paymentHistory': instance.paymentHistory,
 };

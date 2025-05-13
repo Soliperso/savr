@@ -100,11 +100,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.green),
+                const Icon(Icons.check_circle, color: Colors.green),
                 SizedBox(width: 8.w),
-                Text(
+                const Text(
                   'Profile image updated locally',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),

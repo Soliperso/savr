@@ -1,8 +1,9 @@
 import 'package:json_annotation/json_annotation.dart';
+import 'payment.dart';
 
 part 'bill.g.dart';
 
-/// Represents a bill in SavvySplit.
+/// Represents a bill in Savr.
 @JsonSerializable()
 class Bill {
   final String id;
@@ -16,6 +17,9 @@ class Bill {
   final Map<String, double>? customSplits;
   final bool paid;
   final List<String> paidBy;
+  final String? category;
+  final double? paidAmount;
+  final List<Payment>? paymentHistory;
 
   const Bill({
     required this.id,
@@ -29,6 +33,9 @@ class Bill {
     this.customSplits,
     required this.paid,
     required this.paidBy,
+    this.category,
+    this.paidAmount,
+    this.paymentHistory,
   });
 
   factory Bill.fromJson(Map<String, dynamic> json) => _$BillFromJson(json);
@@ -46,6 +53,9 @@ class Bill {
     Map<String, double>? customSplits,
     bool? paid,
     List<String>? paidBy,
+    String? category,
+    double? paidAmount,
+    List<Payment>? paymentHistory,
   }) {
     return Bill(
       id: id ?? this.id,
@@ -59,6 +69,9 @@ class Bill {
       customSplits: customSplits ?? this.customSplits,
       paid: paid ?? this.paid,
       paidBy: paidBy ?? this.paidBy,
+      category: category ?? this.category,
+      paidAmount: paidAmount ?? this.paidAmount,
+      paymentHistory: paymentHistory ?? this.paymentHistory,
     );
   }
 }
