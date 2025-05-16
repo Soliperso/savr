@@ -30,7 +30,14 @@
   "passwordsDoNotMatch": "Passwords do not match",
   "passwordChangedDemo": "Password changed (demo only)",
   "languageChangedTo": "Language changed to {language}",
+  "languageChanged": "Language changed to {language}!",
   "errorUpdatingProfile": "Error updating profile: {error}",
   "profileUpdatedSuccessfully": "Profile updated successfully!",
-  "error": "Error: {error}"
+  "error": "Error: {error}",
+  "darkMode": "Dark Mode",
+  "notifications": "Notifications",
+  "languageEnglish": "English",
+  "languageFrench": "French",
+  "languageSpanish": "Spanish",
+  "languageArabic": "Arabic"
 }

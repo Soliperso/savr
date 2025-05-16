@@ -29,7 +29,7 @@ class PendingBillsList extends StatelessWidget {
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount:
-                  bills.length >= 3
+                  bills.length >= 4
                       ? (bills.length > 4 ? 4 : bills.length)
                       : bills.length,
               itemBuilder: (context, index) {
@@ -82,15 +82,15 @@ class PendingBillsList extends StatelessWidget {
                   },
                   child: ListTile(
                     leading: CircleAvatar(
-                      backgroundColor: chipColor.withOpacity(0.13),
+                      backgroundColor: chipColor.withValues(alpha: .13),
                       child: Icon(Icons.receipt_long, color: chipColor),
                     ),
                     title: Text(
                       bill['title'] as String,
                       style: TextStyle(
                         fontFamily: 'Inter',
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -112,7 +112,7 @@ class PendingBillsList extends StatelessWidget {
                             child: LinearProgressIndicator(
                               value: progress,
                               minHeight: 6,
-                              backgroundColor: chipColor.withOpacity(0.10),
+                              backgroundColor: chipColor.withValues(alpha: .10),
                               valueColor: AlwaysStoppedAnimation<Color>(
                                 chipColor,
                               ),

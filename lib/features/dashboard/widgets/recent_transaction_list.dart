@@ -80,15 +80,15 @@ class RecentTransactionList extends StatelessWidget {
           },
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: iconColor.withOpacity(0.13),
+              backgroundColor: iconColor.withValues(alpha: .13),
               child: Icon(icon, color: iconColor),
             ),
             title: Text(
               tx['title'] as String,
               style: TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 16.sp,
-                fontWeight: FontWeight.w600,
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w500,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,

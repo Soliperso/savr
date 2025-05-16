@@ -41,7 +41,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => BillProvider()),
         ChangeNotifierProvider(create: (_) => InsightsProvider()),
       ],
-      child: const MyApp(),
+      child: MyApp(), // Remove const to allow rebuild on locale change
     ),
   );
 }
@@ -62,7 +62,7 @@ class _MyAppState extends State<MyApp> {
       designSize: const Size(375, 812),
       minTextAdapt: true,
       builder: (context, child) {
-        // Handle text scaling at the app root level
+        // Remove manual Directionality. Let MaterialApp handle locale and directionality.
         return AccessibleText(
           child: MaterialApp(
             title: 'Savr',
@@ -75,7 +75,12 @@ class _MyAppState extends State<MyApp> {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [Locale('en'), Locale('fr'), Locale('es')],
+            supportedLocales: const [
+              Locale('en'),
+              Locale('fr'),
+              Locale('es'),
+              Locale('ar'),
+            ],
             locale: _getLocaleFromLanguage(authProvider.currentLanguage),
             initialRoute: '/',
             routes: {
@@ -85,6 +90,7 @@ class _MyAppState extends State<MyApp> {
               '/forgot-password': (context) => const ForgotPasswordScreen(),
               '/dashboard': (context) => const MainScreen(),
               '/profile': (context) => const ProfileScreen(),
+              '/insights': (context) => const InsightsScreen(),
             },
           ),
         );
@@ -226,6 +232,8 @@ Locale _getLocaleFromLanguage(String language) {
       return const Locale('fr');
     case 'es':
       return const Locale('es');
+    case 'ar':
+      return const Locale('ar');
     case 'en':
     default:
       return const Locale('en');

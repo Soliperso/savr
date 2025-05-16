@@ -30,12 +30,13 @@ class AIInsightCard extends StatelessWidget {
                 'Your savings increased by 15% this month! Keep up the great work.',
                 style: TextStyle(
                   fontFamily: 'Inter',
-                  fontSize: 16.sp,
+                  fontSize: 14.sp,
+
                   color:
                       isDark
                           ? AppColors.darkTextPrimary
                           : AppColors.lightTextPrimary,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w300,
                 ),
               ),
             ),

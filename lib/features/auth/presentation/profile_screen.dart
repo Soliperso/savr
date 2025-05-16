@@ -213,6 +213,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showImageSourceActionSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     showModalBottomSheet(
       context: context,
       shape: RoundedRectangleBorder(
@@ -235,7 +237,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 SizedBox(height: 16.h),
                 ListTile(
-                  leading: Icon(Icons.photo_library, size: 24.sp),
+                  leading: Icon(
+                    Icons.photo_library,
+                    size: 24.sp,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                   title: Text(
                     'Choose from Gallery',
                     style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
@@ -246,7 +252,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.camera_alt, size: 24.sp),
+                  leading: Icon(
+                    Icons.camera_alt,
+                    size: 24.sp,
+                    color: isDark ? Colors.white : Colors.black,
+                  ),
                   title: Text(
                     'Take a Photo',
                     style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
@@ -367,14 +377,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  double _calculateProfileCompletion(AuthProvider authProvider) {
+    int total = 3;
+    int filled = 0;
+    if ((authProvider.userName ?? '').isNotEmpty) filled++;
+    if ((authProvider.userEmail ?? '').isNotEmpty) filled++;
+    if (_getProfileImage(authProvider) != null) filled++;
+    return filled / total;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final themeProvider = context.watch<ThemeProvider>();
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final localizations = AppLocalizations.of(context)!;
+    final localizations = AppLocalizations.of(context);
+    // Defensive: fallback to English strings if localizations is null
+    String getString(
+      String? Function(AppLocalizations l) selector,
+      String fallback,
+    ) {
+      final l = localizations;
+      if (l == null) return fallback;
+      try {
+        return selector(l) ?? fallback;
+      } catch (_) {
+        return fallback;
+      }
+    }
 
-    final primaryColor = isDark ? AppColors.primaryDark : AppColors.primary;
+    final primaryColor = isDark ? AppColors.primaryDark : Colors.black;
     final iconColor = isDark ? Colors.white : Colors.black;
     final cardColor = isDark ? Colors.grey[900] : Colors.white;
     final borderColor = isDark ? Colors.grey[800] : Colors.grey[200];
@@ -382,12 +414,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          localizations.profile,
+          getString((l) => l.profile, 'Profile'),
           style: TextStyle(
             fontFamily: 'Poppins',
             fontSize: 20.sp,
             fontWeight: FontWeight.w600,
-            color: primaryColor,
+            color: isDark ? Colors.white70 : Colors.black,
           ),
         ),
         backgroundColor: isDark ? Colors.black : Colors.white,
@@ -402,27 +434,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             // Profile Picture Section
             Center(
-              child: ProfilePictureWidget(
-                imageProvider: _getProfileImage(authProvider),
-                isUploading: _isUploading,
-                onEdit: _showImageSourceActionSheet,
-                primaryColor: primaryColor,
-                iconColor: iconColor,
-                userName: authProvider.userName,
+              child: Hero(
+                tag: 'profile-avatar',
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ProfilePictureWidget(
+                      imageProvider: _getProfileImage(authProvider),
+                      isUploading: _isUploading,
+                      onEdit: _showImageSourceActionSheet,
+                      primaryColor: primaryColor,
+                      iconColor:
+                          Colors.white, // Force camera icon to always be white
+                      userName: authProvider.userName,
+                    ),
+                    if (_isUploading)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withOpacity(0.18),
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             SizedBox(height: 32.h),
 
+            // Profile Completion Meter
+            Card(
+              margin: EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+              color: cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                side: BorderSide(color: borderColor ?? Colors.grey, width: 1.1),
+              ),
+              elevation: isDark ? 0 : 2,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 18.h),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.verified_user,
+                          color: primaryColor,
+                          size: 18.sp,
+                        ),
+                        SizedBox(width: 8.w),
+                        Expanded(
+                          child: Text(
+                            'Profile Completion', // fallback to English, since not in l10n
+                            style: TextStyle(
+                              fontFamily: 'Poppins',
+                              fontWeight: FontWeight.w600,
+                              fontSize: 15.sp,
+                              color: isDark ? Colors.white70 : primaryColor,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${(_calculateProfileCompletion(authProvider) * 100).toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15.sp,
+                            color: isDark ? Colors.white : Colors.black,
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 12.h),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(6.r),
+                      child: LinearProgressIndicator(
+                        value: _calculateProfileCompletion(authProvider),
+                        backgroundColor: Colors.grey[300],
+                        color: primaryColor,
+                        minHeight: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(height: 24.h),
+
             // Personal Information Section
             Semantics(
               header: true,
-              child: Text(
-                localizations.personalInformation,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontFamily: 'Poppins',
-                  fontWeight: FontWeight.w600,
-                  color: primaryColor,
-                ),
+              child: Row(
+                children: [
+                  Icon(Icons.person, color: primaryColor, size: 22.sp),
+                  SizedBox(width: 8.w),
+                  Text(
+                    getString(
+                      (l) => l.personalInformation,
+                      'Personal Information',
+                    ),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontFamily: 'Poppins',
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white70 : primaryColor,
+                    ),
+                  ),
+                ],
               ),
             ),
             SizedBox(height: 16.h),
@@ -442,36 +560,79 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       TextFormField(
                         controller: _nameController,
                         decoration: InputDecoration(
-                          labelText: localizations.name,
-                          prefixIcon: Icon(Icons.person_outline, size: 24.sp),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.r),
+                          labelText: getString((l) => l.name, 'Name'),
+                          prefixIcon: Icon(Icons.person_outline, size: 22.sp),
+                          border: InputBorder.none,
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.grey[200]!,
+                              width: 0.5,
+                            ),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: primaryColor,
+                              width: 1.2,
+                            ),
                           ),
                         ),
-                        validator:
-                            (value) =>
-                                value?.isEmpty ?? true
-                                    ? localizations.pleaseEnterYourName
-                                    : null,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return getString(
+                              (l) => l.pleaseEnterYourName,
+                              'Please enter your name',
+                            );
+                          }
+                          if (value.length < 2) {
+                            return 'Name too short';
+                          }
+                          return null;
+                        },
                         textInputAction: TextInputAction.next,
+                        autofillHints: const [AutofillHints.name],
                       ),
                       SizedBox(height: 16.h),
                       TextFormField(
                         controller: _emailController,
                         decoration: InputDecoration(
-                          labelText: localizations.email,
-                          prefixIcon: Icon(Icons.email_outlined, size: 24.sp),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8.r),
+                          labelText: getString((l) => l.email, 'Email'),
+                          prefixIcon: Icon(Icons.email_outlined, size: 22.sp),
+                          border: InputBorder.none,
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: Colors.grey[200]!,
+                              width: 0.5,
+                            ),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(
+                              color: primaryColor,
+                              width: 1.2,
+                            ),
                           ),
                         ),
-                        validator:
-                            (value) =>
-                                value?.isEmpty ?? true
-                                    ? localizations.pleaseEnterYourEmail
-                                    : null,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return getString(
+                              (l) => l.pleaseEnterYourEmail,
+                              'Please enter your email',
+                            );
+                          }
+                          // Accept if the value is unchanged and already valid
+                          if (value == authProvider.userEmail) {
+                            return null;
+                          }
+                          final emailRegex = RegExp(
+                            r'^[^@\s]+@[^@\s]+\.[^@\s]+ ?',
+                          );
+                          if (!emailRegex.hasMatch(value)) {
+                            return 'Invalid email address';
+                          }
+                          return null;
+                        },
                         textInputAction: TextInputAction.done,
                         keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
                       ),
                       SizedBox(height: 24.h),
                       SizedBox(
@@ -484,20 +645,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           icon:
                               _isUploading
                                   ? const SizedBox(
-                                    width: 20,
-                                    height: 20,
+                                    width: 18,
+                                    height: 18,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
                                       color: Colors.white,
                                     ),
                                   )
-                                  : const Icon(Icons.save_alt_rounded),
+                                  : const Icon(
+                                    Icons.save_alt_rounded,
+                                    size: 18,
+                                  ),
                           label: Text(
-                            localizations.saveChanges,
+                            getString((l) => l.saveChanges, 'Save Changes'),
                             style: TextStyle(
                               fontFamily: 'Poppins',
                               fontSize: 16.sp,
                               fontWeight: FontWeight.w500,
+                              color: isDark ? Colors.white70 : Colors.white,
                             ),
                           ),
                           style: ElevatedButton.styleFrom(
@@ -518,13 +683,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Settings Section
             SizedBox(height: 32.h),
-            Text(
-              localizations.settings,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
+            Row(
+              children: [
+                Icon(Icons.settings, color: primaryColor, size: 22.sp),
+                SizedBox(width: 8.w),
+                Text(
+                  getString((l) => l.settings, 'Settings'),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : primaryColor,
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 16.h),
             SettingsCard(
@@ -534,12 +705,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               onNotificationsToggle: authProvider.toggleNotifications,
               additionalOptions: [
                 ListTile(
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8.w,
+                  ), // Align with SwitchListTile
                   leading: Icon(
                     Icons.lock_outline,
                     color: isDark ? Colors.white : Colors.black,
+                    size: 22.sp,
                   ),
                   title: Text(
-                    localizations.changePassword,
+                    getString((l) => l.changePassword, 'Change Password'),
                     style: Theme.of(
                       context,
                     ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
@@ -551,11 +726,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   onTap: _showChangePasswordDialog,
                 ),
-                Divider(height: 1, color: Colors.grey.shade300, thickness: 0.5),
+                Divider(
+                  height: 1,
+                  color: Colors.grey[200],
+                  thickness: 0.5,
+                  endIndent: 6.w,
+                  indent: 6.w,
+                ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 8.w,
+                  ), // Align with SwitchListTile
+                  leading: Icon(
+                    Icons.delete_outline,
+                    color: Colors.red,
+                    size: 22.sp,
+                  ),
                   title: Text(
-                    localizations.deleteAccount,
+                    getString((l) => l.deleteAccount, 'Delete Account'),
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                       fontFamily: 'Inter',
                       color: Colors.red,
@@ -604,13 +792,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             // Preferences Section
             SizedBox(height: 32.h),
-            Text(
-              localizations.preferences,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontFamily: 'Poppins',
-                fontWeight: FontWeight.w600,
-                color: primaryColor,
-              ),
+            Row(
+              children: [
+                Icon(Icons.tune, color: primaryColor, size: 22.sp),
+                SizedBox(width: 8.w),
+                Text(
+                  getString((l) => l.preferences, 'Preferences'),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontFamily: 'Poppins',
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white70 : primaryColor,
+                  ),
+                ),
+              ],
             ),
             SizedBox(height: 16.h),
             Card(
@@ -626,9 +820,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     leading: Icon(
                       Icons.language,
                       color: isDark ? Colors.white : Colors.black,
+                      size: 22.sp,
                     ),
                     title: Text(
-                      localizations.language,
+                      getString((l) => l.language, 'Language'),
                       style: Theme.of(
                         context,
                       ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
@@ -658,33 +853,101 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: TextStyle(fontFamily: 'Inter', fontSize: 14),
                           ),
                         ),
+                        DropdownMenuItem(
+                          value: 'ar',
+                          child: Text(
+                            'العربية',
+                            style: TextStyle(fontFamily: 'Inter', fontSize: 14),
+                          ),
+                        ),
                       ],
                       onChanged: (String? newLanguage) {
                         if (newLanguage != null &&
                             newLanguage != authProvider.currentLanguage) {
+                          // Change the language first
                           authProvider.changeLanguage(newLanguage);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(localizations.language),
-                              backgroundColor: Colors.green.shade100,
-                            ),
-                          );
+                          // After the locale is updated and the widget tree rebuilds, show the SnackBar in the new language
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            final localizations = AppLocalizations.of(context);
+                            String languageDisplayName;
+                            switch (newLanguage) {
+                              case 'en':
+                                languageDisplayName =
+                                    localizations?.languageEnglish ?? 'English';
+                                break;
+                              case 'fr':
+                                languageDisplayName =
+                                    localizations?.languageFrench ?? 'Français';
+                                break;
+                              case 'es':
+                                languageDisplayName =
+                                    localizations?.languageSpanish ?? 'Español';
+                                break;
+                              case 'ar':
+                                languageDisplayName =
+                                    localizations?.languageArabic ?? 'العربية';
+                                break;
+                              default:
+                                languageDisplayName = newLanguage;
+                            }
+                            ScaffoldMessenger.of(context).clearSnackBars();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                behavior: SnackBarBehavior.floating,
+                                margin: EdgeInsets.only(
+                                  bottom: 24.h,
+                                  left: 16.w,
+                                  right: 16.w,
+                                ),
+                                backgroundColor: Colors.green.shade100,
+                                elevation: 6,
+                                content: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.language,
+                                      color: Colors.green.shade800,
+                                    ),
+                                    SizedBox(width: 10.w),
+                                    Expanded(
+                                      child: Text(
+                                        localizations?.languageChanged(
+                                              languageDisplayName,
+                                            ) ??
+                                            'Language changed to $languageDisplayName!',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.green.shade900,
+                                          fontFamily: 'Inter',
+                                        ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          });
                         }
                       },
                     ),
                   ),
                   Divider(
                     height: 1,
-                    color: Colors.grey.shade300,
+                    color: Colors.grey[200],
                     thickness: 0.5,
+                    endIndent: 6.w,
+                    indent: 6.w,
                   ),
                   ListTile(
                     leading: Icon(
                       Icons.attach_money,
                       color: isDark ? Colors.white : Colors.black,
+                      size: 22.sp,
                     ),
                     title: Text(
-                      localizations.currency,
+                      getString((l) => l.currency, 'Currency'),
                       style: Theme.of(
                         context,
                       ).textTheme.bodyLarge?.copyWith(fontFamily: 'Inter'),
@@ -700,7 +963,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               value: currency,
                               child: Text(
                                 currency,
-                                style: TextStyle(fontFamily: 'Inter'),
+                                style: const TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 13,
+                                ),
                               ),
                             );
                           }).toList(),
@@ -720,15 +986,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  await authProvider.logout();
-                  if (mounted) {
-                    Navigator.of(
-                      context,
-                    ).pushNamedAndRemoveUntil('/login', (route) => false);
-                  }
-                },
-                icon: const Icon(Icons.logout),
+                onPressed:
+                    _isUploading
+                        ? null
+                        : () async {
+                          await authProvider.logout();
+                          if (mounted) {
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/login',
+                              (route) => false,
+                            );
+                          }
+                        },
+                icon:
+                    _isUploading
+                        ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                        : const Icon(Icons.logout, size: 18),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.error,
                   foregroundColor: Colors.white,
@@ -738,7 +1018,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   elevation: isDark ? 0 : 2,
                 ),
                 label: Text(
-                  localizations.logout,
+                  getString((l) => l.logout, 'Logout'),
                   style: TextStyle(
                     fontFamily: 'Poppins',
                     fontSize: 16.sp,

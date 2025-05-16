@@ -30,7 +30,14 @@
   "passwordsDoNotMatch": "Les mots de passe ne correspondent pas",
   "passwordChangedDemo": "Mot de passe changé (démo uniquement)",
   "languageChangedTo": "Langue changée en {language}",
+  "languageChanged": "Langue changée en {language} !",
   "errorUpdatingProfile": "Erreur lors de la mise à jour du profil : {error}",
   "profileUpdatedSuccessfully": "Profil mis à jour avec succès !",
-  "error": "Erreur : {error}"
+  "error": "Erreur : {error}",
+  "darkMode": "Mode sombre",
+  "notifications": "Notifications",
+  "languageEnglish": "Anglais",
+  "languageFrench": "Français",
+  "languageSpanish": "Espagnol",
+  "languageArabic": "Arabe"
 }
