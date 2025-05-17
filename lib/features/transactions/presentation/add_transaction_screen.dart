@@ -104,28 +104,34 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       setState(() => _isLoading = true);
       final title = _titleController.text.trim();
       final amount = double.parse(_amountController.text.replaceAll(',', '.'));
+      // If it's an expense, make the amount negative
+      final finalAmount = _isExpense ? -amount : amount;
       final category = _selectedCategory ?? _categories.first;
       final note = _noteController.text.trim();
       try {
-        Provider.of<TransactionProvider>(context, listen: false).addTransaction(
-          title,
-          amount,
-          _isExpense,
-          date: _selectedDate,
-          category: category,
-          note: note,
-        );
+        final success = await Provider.of<TransactionProvider>(
+          context,
+          listen: false,
+        ).addTransaction(title, finalAmount, category, _selectedDate, note);
+
         if (!mounted) return;
-        HapticFeedback.lightImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Transaction saved',
-              semanticsLabel: 'Transaction saved',
+
+        if (success) {
+          HapticFeedback.lightImpact();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Transaction saved',
+                semanticsLabel: 'Transaction saved',
+              ),
             ),
-          ),
-        );
-        Navigator.pop(context);
+          );
+          Navigator.pop(context);
+        } else {
+          final error =
+              Provider.of<TransactionProvider>(context, listen: false).error;
+          throw Exception(error ?? 'Failed to save transaction');
+        }
       } catch (e) {
         HapticFeedback.heavyImpact();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -230,28 +236,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             _isExpense ? 'Expense selected' : 'Income selected',
                         toggled: true,
                         child: SegmentedButton<bool>(
-                          segments: [
+                          segments: const [
                             ButtonSegment<bool>(
                               value: true,
-                              label: Text(
-                                'Expense',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                ),
-                              ),
-                              icon: const Icon(Icons.remove_circle_outline),
+                              label: Text('Expense'),
+                              icon: Icon(Icons.remove_circle_outline),
                             ),
                             ButtonSegment<bool>(
                               value: false,
-                              label: Text(
-                                'Income',
-                                style: TextStyle(
-                                  fontFamily: 'Inter',
-                                  fontSize: 14.sp,
-                                ),
-                              ),
-                              icon: const Icon(Icons.add_circle_outline),
+                              label: Text('Income'),
+                              icon: Icon(Icons.add_circle_outline),
                             ),
                           ],
                           selected: {_isExpense},
@@ -356,6 +350,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             prefixStyle: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 16.sp,
+                              color: _isExpense ? Colors.red : Colors.green,
                             ),
                             filled: true,
                             fillColor: inputFillColor,
@@ -374,11 +369,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 width: 1.5,
                               ),
                             ),
-                            // Removed prefixIcon to avoid duplicate icon
                           ),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
+                            color: _isExpense ? Colors.red : Colors.green,
                           ),
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
@@ -404,7 +399,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                           },
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
-                              RegExp(r'^[0-9]*[.,]?[0-9]{0,2}\u0000?'),
+                              RegExp(r'^[0-9]*[.,]?[0-9]{0,2}$'),
                             ),
                           ],
                         ),
@@ -426,7 +421,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                             _categoryIcons[cat] ??
                                                 Icons.category,
                                             size: 18.sp,
-                                            color: theme.colorScheme.primary,
+                                            color:
+                                                _isExpense
+                                                    ? theme.colorScheme.primary
+                                                    : Colors.green,
                                           ),
                                           SizedBox(width: 8.w),
                                           Text(
@@ -434,6 +432,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                             style: TextStyle(
                                               color:
                                                   theme.colorScheme.onSurface,
+                                              fontFamily: 'Inter',
                                             ),
                                           ),
                                         ],
@@ -499,6 +498,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                               fontFamily: 'Inter',
                               fontSize: 14.sp,
                             ),
+                            hintText: 'Add any additional details',
                             filled: true,
                             fillColor: inputFillColor,
                             border: OutlineInputBorder(
@@ -528,6 +528,10 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                           textInputAction: TextInputAction.done,
                           onFieldSubmitted: (_) {
                             FocusScope.of(context).unfocus();
+                            // Attempt to save when done typing note
+                            if (_formKey.currentState?.validate() ?? false) {
+                              _saveTransaction();
+                            }
                           },
                         ),
                       ),
@@ -539,15 +543,15 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                               label: 'Date',
                               child: Text(
                                 // Use locale-aware date formatting
-                                'Date:  ${MaterialLocalizations.of(context).formatMediumDate(_selectedDate)}',
+                                'Date:  ${MaterialLocalizations.of(context).formatMediumDate(_selectedDate)}',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 14.sp,
                                   color:
                                       isPast
-                                          ? Colors.red
+                                          ? Colors.red.shade700
                                           : isFuture
-                                          ? Colors.green
+                                          ? Colors.green.shade700
                                           : theme.colorScheme.onSurface
                                               .withOpacity(0.8),
                                   fontWeight:
@@ -563,8 +567,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                             button: true,
                             child: TextButton.icon(
                               onPressed: _pickDate,
-                              icon: const Icon(Icons.calendar_today_outlined),
-                              label: const Text('Pick Date'),
+                              icon: Icon(
+                                Icons.calendar_today_outlined,
+                                color: theme.colorScheme.primary,
+                                size: 20.sp,
+                              ),
+                              label: Text(
+                                'Pick Date',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.sp,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -584,17 +599,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                               onPressed:
                                   _isLoading
                                       ? null
-                                      : () async {
-                                        HapticFeedback.mediumImpact();
-                                        _saveTransaction();
+                                      : () {
+                                        if (_formKey.currentState?.validate() ??
+                                            false) {
+                                          HapticFeedback.mediumImpact();
+                                          _saveTransaction();
+                                        } else {
+                                          HapticFeedback.vibrate();
+                                        }
                                       },
                               icon:
                                   _isLoading
                                       ? SizedBox(
                                         width: 20.w,
                                         height: 20.w,
-                                        child: const CircularProgressIndicator(
+                                        child: CircularProgressIndicator(
                                           strokeWidth: 2,
+                                          color: theme.colorScheme.onPrimary,
                                         ),
                                       )
                                       : const Icon(Icons.save_alt_rounded),
@@ -631,6 +652,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                         Center(
                           child: TextButton(
                             onPressed: () {
+                              HapticFeedback.selectionClick();
                               _formKey.currentState?.reset();
                               _titleController.clear();
                               _amountController.clear();
@@ -640,8 +662,23 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 _selectedDate = DateTime.now();
                                 _isExpense = true;
                               });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Form cleared'),
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
                             },
-                            child: Text('Clear Form'),
+                            style: TextButton.styleFrom(
+                              foregroundColor: theme.colorScheme.secondary,
+                            ),
+                            child: Text(
+                              'Clear Form',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                              ),
+                            ),
                           ),
                         ),
                     ],

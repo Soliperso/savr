@@ -41,7 +41,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => BillProvider()),
         ChangeNotifierProvider(create: (_) => InsightsProvider()),
       ],
-      child: MyApp(), // Remove const to allow rebuild on locale change
+      child: const MyApp(), // Remove const to allow rebuild on locale change
     ),
   );
 }
@@ -158,7 +158,7 @@ class _MainScreenState extends State<MainScreen> {
             BoxShadow(
               color: Colors.black.withOpacity(0.08),
               blurRadius: 12,
-              offset: Offset(0, -2),
+              offset: const Offset(0, -2),
             ),
           ],
         ),
@@ -209,7 +209,7 @@ class _MainScreenState extends State<MainScreen> {
                     16,
                 bottom: 8,
                 child: AnimatedContainer(
-                  duration: Duration(milliseconds: 250),
+                  duration: const Duration(milliseconds: 250),
                   width: 32,
                   height: 6,
                   decoration: BoxDecoration(

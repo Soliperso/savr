@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:savr/providers/bill_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../models/group.dart';
-import '../../../providers/bill_provider.dart';
 import '../../../features/shared/widgets/animated_snackbar.dart';
 
 class AddBillScreen extends StatefulWidget {

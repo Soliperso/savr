@@ -1,13 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/auth_provider.dart';
-import '../../../providers/theme_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../providers/theme_provider.dart';
 import 'widgets/profile_picture_widget.dart';
 import 'widgets/settings_card.dart';
 
@@ -88,13 +88,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       setState(() {
         _imageFile = File(croppedFile.path);
-      });
-
-      // If no backend for image upload, just update locally
-      // TODO: Integrate backend upload when available
-      setState(() {
         _isUploading = false;
       });
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -103,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const Icon(Icons.check_circle, color: Colors.green),
                 SizedBox(width: 8.w),
                 const Text(
-                  'Profile image updated locally',
+                  'Image selected. Press Save Changes to update your profile.',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
@@ -112,35 +108,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         );
       }
-      // Uncomment below when backend is ready
-      // final success = await context.read<AuthProvider>().updateProfileImage(croppedFile.path);
-      // setState(() {
-      //   _isUploading = false;
-      // });
-      // if (mounted) {
-      //   // Enhanced snackbar messages with bold text for better visibility
-      //   ScaffoldMessenger.of(context).showSnackBar(
-      //     SnackBar(
-      //       content: Row(
-      //         children: [
-      //           Icon(
-      //             success ? Icons.check_circle : Icons.error,
-      //             color: success ? Colors.green : Colors.red,
-      //           ),
-      //           SizedBox(width: 8.w),
-      //           Text(
-      //             success
-      //                 ? 'Profile image updated successfully'
-      //                 : 'Failed to update profile image',
-      //             style: const TextStyle(fontWeight: FontWeight.bold),
-      //           ),
-      //         ],
-      //       ),
-      //       backgroundColor:
-      //           success ? Colors.green.shade100 : Colors.red.shade100,
-      //     ),
-      //   );
-      // }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -169,11 +136,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       try {
-        // Call the updateProfile method synchronously
+        // Update profile info
         authProvider.updateProfile(
           name: _nameController.text,
           email: _emailController.text,
         );
+
+        // Upload image if a new one was selected
+        bool imageUpdateSuccess = true;
+        String? imageErrorMessage;
+        if (_imageFile != null) {
+          try {
+            imageUpdateSuccess = await authProvider.updateProfileImage(
+              _imageFile!.path,
+            );
+          } catch (error) {
+            imageUpdateSuccess = false;
+            imageErrorMessage = error.toString().replaceAll('Exception: ', '');
+            debugPrint('Error updating profile image: $error');
+          }
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -182,7 +164,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   const Icon(Icons.check_circle, color: Colors.green),
                   SizedBox(width: 8.w),
-                  const Text('Profile updated successfully!'),
+                  Text(
+                    _imageFile != null && !imageUpdateSuccess
+                        ? 'Profile updated but image upload failed'
+                        : 'Profile updated successfully!',
+                  ),
                 ],
               ),
               backgroundColor: Colors.green.shade100,
@@ -507,13 +493,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                     SizedBox(height: 12.h),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6.r),
-                      child: LinearProgressIndicator(
-                        value: _calculateProfileCompletion(authProvider),
-                        backgroundColor: Colors.grey[300],
-                        color: primaryColor,
-                        minHeight: 10,
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal:
+                            12.w, // Increased horizontal margin for better alignment
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6.r),
+                        child: LinearProgressIndicator(
+                          value: _calculateProfileCompletion(authProvider),
+                          backgroundColor: Colors.grey[300],
+                          color: primaryColor,
+                          minHeight: 10,
+                        ),
                       ),
                     ),
                   ],
@@ -557,82 +549,113 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   key: _formKey,
                   child: Column(
                     children: [
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: getString((l) => l.name, 'Name'),
-                          prefixIcon: Icon(Icons.person_outline, size: 22.sp),
-                          border: InputBorder.none,
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: Colors.grey[200]!,
-                              width: 0.5,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_outline,
+                            size: 22.sp,
+                            color: iconColor, // Use iconColor for consistency
+                          ),
+                          SizedBox(width: 10.w),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                hintText: getString((l) => l.name, 'Name'),
+                                border: InputBorder.none,
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[200]!,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: primaryColor,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 12.h,
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return getString(
+                                    (l) => l.pleaseEnterYourName,
+                                    'Please enter your name',
+                                  );
+                                }
+                                if (value.length < 2) {
+                                  return 'Name too short';
+                                }
+                                return null;
+                              },
+                              textInputAction: TextInputAction.next,
+                              autofillHints: const [AutofillHints.name],
+                              style: TextStyle(fontSize: 15.sp),
                             ),
                           ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: primaryColor,
-                              width: 1.2,
-                            ),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return getString(
-                              (l) => l.pleaseEnterYourName,
-                              'Please enter your name',
-                            );
-                          }
-                          if (value.length < 2) {
-                            return 'Name too short';
-                          }
-                          return null;
-                        },
-                        textInputAction: TextInputAction.next,
-                        autofillHints: const [AutofillHints.name],
+                        ],
                       ),
                       SizedBox(height: 16.h),
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: getString((l) => l.email, 'Email'),
-                          prefixIcon: Icon(Icons.email_outlined, size: 22.sp),
-                          border: InputBorder.none,
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: Colors.grey[200]!,
-                              width: 0.5,
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.email_outlined,
+                            size: 22.sp,
+                            color: iconColor, // Use iconColor for consistency
+                          ),
+                          SizedBox(width: 10.w),
+                          Expanded(
+                            child: TextFormField(
+                              controller: _emailController,
+                              decoration: InputDecoration(
+                                hintText: getString((l) => l.email, 'Email'),
+                                border: InputBorder.none,
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[200]!,
+                                    width: 0.5,
+                                  ),
+                                ),
+                                focusedBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: primaryColor,
+                                    width: 1.2,
+                                  ),
+                                ),
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(
+                                  vertical: 12.h,
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return getString(
+                                    (l) => l.pleaseEnterYourEmail,
+                                    'Please enter your email',
+                                  );
+                                }
+                                if (value == authProvider.userEmail) {
+                                  return null;
+                                }
+                                final emailRegex = RegExp(
+                                  r'^[^@\s]+@[^@\s]+\.[^@\s]+\u0000?',
+                                );
+                                if (!emailRegex.hasMatch(value)) {
+                                  return 'Invalid email address';
+                                }
+                                return null;
+                              },
+                              textInputAction: TextInputAction.done,
+                              keyboardType: TextInputType.emailAddress,
+                              autofillHints: const [AutofillHints.email],
+                              style: TextStyle(fontSize: 15.sp),
                             ),
                           ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: primaryColor,
-                              width: 1.2,
-                            ),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return getString(
-                              (l) => l.pleaseEnterYourEmail,
-                              'Please enter your email',
-                            );
-                          }
-                          // Accept if the value is unchanged and already valid
-                          if (value == authProvider.userEmail) {
-                            return null;
-                          }
-                          final emailRegex = RegExp(
-                            r'^[^@\s]+@[^@\s]+\.[^@\s]+ ?',
-                          );
-                          if (!emailRegex.hasMatch(value)) {
-                            return 'Invalid email address';
-                          }
-                          return null;
-                        },
-                        textInputAction: TextInputAction.done,
-                        keyboardType: TextInputType.emailAddress,
-                        autofillHints: const [AutofillHints.email],
+                        ],
                       ),
                       SizedBox(height: 24.h),
                       SizedBox(

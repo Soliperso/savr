@@ -401,10 +401,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
       if (_selectedFriends.isEmpty) {
         AnimatedSnackBar.show(
           context,
-          message:
-              AppLocalizations.of(
-                context,
-              )!.pleaseEnterYourEmail, // Use a localized string for error
+          message: 'Please select at least one member',
           backgroundColor: Colors.red.withOpacity(0.9),
         );
         return;
@@ -421,14 +418,14 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 ? '-'
                 : _descriptionController.text,
         members: _selectedFriends,
-        // Optionally: pass avatar file if backend supports
+        avatarFile: _avatarFile,
       );
       setState(() => _isLoading = false);
       if (mounted) {
         Navigator.pop(context);
         AnimatedSnackBar.show(
           context,
-          message: AppLocalizations.of(context)!.profileUpdatedSuccessfully,
+          message: 'Group created successfully',
           backgroundColor: Theme.of(context).primaryColor.withOpacity(0.9),
         );
       }

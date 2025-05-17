@@ -15,7 +15,6 @@ import '../../transactions/presentation/add_transaction_screen.dart';
 import '../widgets/summary_item.dart';
 import '../widgets/recent_transaction_list.dart';
 import '../../../features/auth/presentation/profile_screen.dart';
-import '../widgets/ai_insight_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -124,12 +123,12 @@ class _DashboardScreenState extends State<DashboardScreen>
               overflow: TextOverflow.ellipsis,
             ),
             Text(
-              authProvider.userName?.split(' ').first ?? 'User',
+              '${authProvider.userName?.split(' ').first ?? 'User'}!',
               style: TextStyle(
                 fontFamily: 'Poppins',
-                fontSize: 20.sp,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).textTheme.titleLarge?.color,
+                fontSize: 18.sp,
+                fontWeight: FontWeight.w500, // Changed from bold to medium
+                color: Theme.of(context).textTheme.titleMedium?.color,
               ),
               overflow: TextOverflow.ellipsis,
             ),
@@ -1176,11 +1175,8 @@ class _ExpandableInsightCardState extends State<_ExpandableInsightCard>
                                             style: TextStyle(
                                               fontFamily: 'Poppins',
                                               fontWeight: FontWeight.w700,
-                                              fontSize: 17.sp,
-                                              color:
-                                                  isDark
-                                                      ? Colors.white
-                                                      : Colors.black87,
+                                              fontSize:
+                                                  15.sp, // Reduced from 17.sp to 15.sp
                                               letterSpacing: 0.15,
                                             ),
                                           ),

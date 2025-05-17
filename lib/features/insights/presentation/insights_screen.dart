@@ -4,13 +4,12 @@ import 'package:provider/provider.dart';
 import '../../../providers/bill_provider.dart';
 import '../../../providers/insights_provider.dart';
 import '../../../providers/transaction_provider.dart';
-import '../widgets/category_pie_chart.dart';
 import '../widgets/insight_chart.dart';
-import '../widgets/spending_chart.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
 
+  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,9 +117,13 @@ class InsightsScreen extends StatelessWidget {
                         : 'No bill advice available yet.',
                 color: Colors.purpleAccent.withOpacity(0.7),
                 icon: Icons.receipt_long,
-                chartData: billProvider.bills.map((b) => b.amount).toList(),
+                chartData:
+                    billProvider.bills.map((b) => b.amount as double).toList(),
                 customChart: InsightChart(
-                  data: billProvider.bills.map((b) => b.amount).toList(),
+                  data:
+                      billProvider.bills
+                          .map((b) => b.amount as double)
+                          .toList(),
                   lineColor: Colors.purpleAccent,
                 ),
               ),
@@ -133,9 +136,13 @@ class InsightsScreen extends StatelessWidget {
                         : 'No additional budgeting tips available yet.',
                 color: Colors.greenAccent.withOpacity(0.7),
                 icon: Icons.savings,
-                chartData: billProvider.bills.map((b) => b.amount).toList(),
+                chartData:
+                    billProvider.bills.map((b) => b.amount as double).toList(),
                 customChart: InsightChart(
-                  data: billProvider.bills.map((b) => b.amount).toList(),
+                  data:
+                      billProvider.bills
+                          .map((b) => b.amount as double)
+                          .toList(),
                   lineColor: Colors.greenAccent,
                 ),
               ),

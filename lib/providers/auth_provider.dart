@@ -65,12 +65,24 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _loadUserProfile() async {
     try {
       final userData = await _authService.getUserProfile();
-      if (userData['name'] == null || userData['email'] == null) {
+      debugPrint('User profile data: $userData');
+
+      // Extract user data from the API response
+      if (userData['user'] != null) {
+        final user = userData['user'];
+        _userName = user['name'];
+        _userEmail = user['email'];
+        _profileImage = user['profile_photo_url'];
+      } else {
+        _userName = userData['name'];
+        _userEmail = userData['email'];
+        _profileImage =
+            userData['profile_photo_url'] ?? userData['profile_image'];
+      }
+
+      if (_userName == null || _userEmail == null) {
         throw Exception('Invalid user profile data');
       }
-      _userName = userData['name'];
-      _userEmail = userData['email'];
-      _profileImage = userData['profile_image'];
     } catch (e) {
       debugPrint('Failed to load user profile: $e');
       throw Exception('Failed to load user profile');

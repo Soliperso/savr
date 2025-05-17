@@ -10,6 +10,7 @@ import 'package:http_parser/http_parser.dart';
 import '../config/env.dart';
 
 class AuthService {
+  static const String baseUrl = 'https://srv797850.hstgr.cloud/api';
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   String? _cachedToken;
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email', 'profile']);
@@ -53,10 +54,11 @@ class AuthService {
 
       // Try to get user profile to validate token
       final response = await http.get(
-        Uri.parse('${Env.baseApiUrl}/user/profile'),
+        Uri.parse('$baseUrl/user/profile'),
         headers: _getHeaders(token),
       );
 
+      debugPrint('Auth check status: ${response.statusCode}');
       if (response.statusCode == 401) {
         // Token is invalid, clear it
         _cachedToken = null;
@@ -160,7 +162,7 @@ class AuthService {
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
-      final url = '${Env.baseApiUrl}/login';
+      final url = '$baseUrl/login';
       final headers = _getHeaders();
       final body = {'email': email, 'password': password};
 
@@ -182,7 +184,25 @@ class AuthService {
         throw Exception('Invalid email or password. Please try again.');
       }
 
-      return await _handleResponse(response);
+      final data = jsonDecode(response.body);
+
+      // Extract token from response
+      String? token =
+          data['token'] ??
+          data['access_token'] ??
+          (data['data'] is Map ? data['data']['token'] : null) ??
+          (data['user'] is Map ? data['user']['access_token'] : null) ??
+          (data['user'] is Map ? data['user']['token'] : null);
+
+      if (token != null) {
+        debugPrint('Token found in response, length: ${token.length}');
+        _cachedToken = token;
+        await _storage.write(key: 'auth_token', value: token);
+      } else {
+        debugPrint('No token found in response: ${jsonEncode(data)}');
+      }
+
+      return data;
     } catch (e) {
       debugPrint('Login error: $e');
       if (e is Exception) {
@@ -198,7 +218,7 @@ class AuthService {
     String password,
   ) async {
     try {
-      final url = Uri.parse('${Env.baseApiUrl}/register');
+      final url = Uri.parse('$baseUrl/register');
       final requestBody = {
         'name': name,
         'email': email,
@@ -226,81 +246,50 @@ class AuthService {
 
       if (response.statusCode == 201 || response.statusCode == 200) {
         // Check if this is a successful registration without token
-        if (data['message']?.toString().toLowerCase().contains(
-              'registered successfully',
-            ) ==
-            true) {
+        if (data['message'] != null) {
           // Automatically login after successful registration
           debugPrint('Registration successful, attempting automatic login...');
           return await login(email, password);
         }
 
         // If we have a token in the response, process it
-        final token =
-            data['token'] ??
-            data['access_token'] ??
-            (data['data'] is Map ? data['data']['token'] : null);
-
-        if (token != null) {
-          _cachedToken = token;
-          await _storage.write(key: 'auth_token', value: token);
-
-          // If user data is nested in a 'data' field, use that
-          final userData = data['data'] is Map ? data['data'] : data;
-          return userData;
+        if (data['token'] != null) {
+          _cachedToken = data['token'];
+          await _storage.write(key: 'auth_token', value: data['token']);
         }
 
-        debugPrint('Token not found in response: $data');
-        throw Exception('Registration successful. Please login to continue.');
+        return data;
       } else if (response.statusCode == 422) {
-        // Handle validation errors
-        final errors = data['errors'] as Map<String, dynamic>?;
-        if (errors != null) {
-          if (errors.containsKey('email')) {
-            // Specific handling for email-related errors
-            final emailErrors = errors['email'] as List?;
-            if (emailErrors?.isNotEmpty == true) {
-              throw Exception(
-                'This email address is already registered. Please try logging in instead.',
-              );
-            }
-          }
-          // Handle other validation errors
-          final firstError = errors.values.firstWhere(
-            (error) => error is List && error.isNotEmpty,
-            orElse: () => [],
-          );
-          if (firstError is List && firstError.isNotEmpty) {
-            throw Exception(firstError.first);
-          }
+        // Validation errors
+        final errors = data['errors'];
+        if (errors != null && errors is Map) {
+          final firstErrorField = errors.keys.first;
+          final firstError = errors[firstErrorField][0];
+          throw Exception(firstError ?? 'Validation failed');
         }
-        throw Exception(
-          data['message'] ??
-              'Registration validation failed. Please check your information.',
-        );
+        throw Exception(data['message'] ?? 'Registration failed');
       } else {
-        throw Exception(
-          data['message'] ?? 'Registration failed. Please try again.',
-        );
+        throw Exception(data['message'] ?? 'Registration failed');
       }
     } catch (e) {
+      debugPrint('Registration error: $e');
       if (e is Exception) {
         rethrow;
       }
-      debugPrint('Registration error: $e');
-      throw Exception(
-        'Network error occurred. Please check your internet connection and try again.',
-      );
+      throw Exception('Network error occurred. Please try again.');
     }
   }
 
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     try {
       final response = await http.post(
-        Uri.parse('${Env.baseApiUrl}/forgot-password'),
+        Uri.parse('$baseUrl/forgot-password'),
         headers: _getHeaders(),
         body: jsonEncode({'email': email}),
       );
+
+      debugPrint('Forgot Password Response Status: ${response.statusCode}');
+      debugPrint('Forgot Password Response Body: ${response.body}');
 
       final data = jsonDecode(response.body);
 
@@ -320,6 +309,7 @@ class AuthService {
         throw Exception(data['message'] ?? 'Password reset request failed');
       }
     } catch (e) {
+      debugPrint('Forgot password error: $e');
       throw Exception('Network error occurred. Please try again.');
     }
   }
@@ -329,9 +319,12 @@ class AuthService {
       final token = await getToken();
       if (token != null) {
         final response = await http.post(
-          Uri.parse('${Env.baseApiUrl}/logout'),
+          Uri.parse('$baseUrl/logout'),
           headers: _getHeaders(token),
         );
+
+        debugPrint('Logout Response Status: ${response.statusCode}');
+        debugPrint('Logout Response Body: ${response.body}');
 
         if (response.statusCode != 200 && response.statusCode != 204) {
           throw Exception('Logout failed');
@@ -351,9 +344,12 @@ class AuthService {
     }
 
     try {
-      final url = '${Env.baseApiUrl}/user/profile';
+      final url = '$baseUrl/me';
       final headers = _getHeaders(token);
       final response = await http.get(Uri.parse(url), headers: headers);
+
+      debugPrint('User Profile Response Status: ${response.statusCode}');
+      debugPrint('User Profile Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -400,9 +396,14 @@ class AuthService {
           .replaceAll('.', '');
 
       // Create multipart request with timeout
+      final endpoint = '${baseUrl}/user/profile/image';
+      debugPrint('Using endpoint for image upload: $endpoint');
+
       final request = http.MultipartRequest(
         'POST',
-        Uri.parse('${Env.baseApiUrl}/user/update-profile-image'),
+        Uri.parse(
+          endpoint,
+        ), // Updated endpoint to match server's expected route
       );
 
       // Add authorization header
@@ -448,9 +449,9 @@ class AuthService {
         'Response body: ${response.body.substring(0, min(100, response.body.length))}...',
       );
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body);
-        debugPrint('Image upload successful');
+        debugPrint('Profile image upload response: ${jsonEncode(data)}');
         return data;
       } else {
         Map<String, dynamic> error = {};
@@ -459,12 +460,13 @@ class AuthService {
         } catch (e) {
           debugPrint('Failed to parse error response: $e');
         }
+        final errorEndpoint = endpoint.replaceAll(baseUrl, '');
         debugPrint(
           'Image upload failed with status: ${response.statusCode}, message: ${error['message'] ?? 'Unknown error'}',
         );
         throw Exception(
           error['message'] ??
-              'Failed to update profile image (${response.statusCode})',
+              'Failed to update profile image at $errorEndpoint (${response.statusCode})',
         );
       }
     } catch (e) {

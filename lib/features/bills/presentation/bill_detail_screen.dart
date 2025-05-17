@@ -4,10 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import '../../../models/bill.dart';
-import '../../../providers/bill_provider.dart';
-import '../../../features/shared/widgets/animated_snackbar.dart';
-// Using DateFormat directly instead of DateFormatter
+
+// Import with absolute paths to ensure proper resolution
+import 'package:savr/models/bill.dart';
+import 'package:savr/providers/bill_provider.dart';
+import 'package:savr/features/shared/widgets/animated_snackbar.dart';
 
 class BillDetailScreen extends StatelessWidget {
   final String billId;
@@ -16,11 +17,18 @@ class BillDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final billProvider = Provider.of<BillProvider>(context);
-    final bill = billProvider.getBillById(billId);
+    // Access the BillProvider directly from the context
+    final billProvider = Provider.of<BillProvider>(context, listen: true);
+    // Use a try-catch to handle potential errors
+    Bill? bill;
+    try {
+      bill = billProvider.getBillById(billId);
+    } catch (e) {
+      debugPrint('Error getting bill: $e');
+    }
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    if (bill == null) {
+    if (bill == null || bill.id.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Bill Details')),
         body: const Center(child: Text('Bill not found')),
@@ -122,53 +130,20 @@ class BillDetailScreen extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12.r),
-                    border: Border.all(color: statusColor.withOpacity(0.3)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: statusColor.withOpacity(0.1),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.circular(8.r),
                   ),
                   child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Icon(
-                        status == 'pending'
-                            ? Icons.access_time
-                            : status == 'overdue'
-                            ? Icons.warning
-                            : Icons.check_circle,
-                        color: statusColor,
-                      ),
-                      SizedBox(width: 8),
                       Text(
-                        status == 'pending'
-                            ? 'Pending'
-                            : status == 'overdue'
-                            ? 'Overdue'
-                            : 'Paid',
+                        status.toUpperCase(),
                         style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 14.sp,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.bold,
                           color: statusColor,
                         ),
                       ),
-                      ...(daysText.isNotEmpty && status != 'paid'
-                          ? [
-                            SizedBox(width: 8),
-                            Text(
-                              '• $daysText',
-                              style: TextStyle(
-                                fontFamily: 'Inter',
-                                fontSize: 14.sp,
-                                color: statusColor,
-                              ),
-                            ),
-                          ]
-                          : []),
+                      if (daysText.isNotEmpty)
+                        Text(daysText, style: TextStyle(color: statusColor)),
                     ],
                   ),
                 )
@@ -181,7 +156,7 @@ class BillDetailScreen extends StatelessWidget {
                   color: statusColor.withOpacity(0.2),
                 ),
 
-            SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
             // Bill title and category
             Row(
@@ -247,7 +222,7 @@ class BillDetailScreen extends StatelessWidget {
               ],
             ),
 
-            SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
             // Amount card - No shadow implementation
             Container(
@@ -274,7 +249,7 @@ class BillDetailScreen extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -386,7 +361,7 @@ class BillDetailScreen extends StatelessWidget {
                   curve: Curves.easeOut,
                   duration: const Duration(milliseconds: 500),
                 ),
-            SizedBox(height: 24),
+            SizedBox(height: 24.h),
             // Split details
             Text(
               'Split Details',
@@ -396,7 +371,7 @@ class BillDetailScreen extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 8.h),
             Text(
               'This bill is split equally between you and ${splitWith.length} friend${splitWith.length > 1 ? 's' : ''}.',
               style: TextStyle(
@@ -405,10 +380,10 @@ class BillDetailScreen extends StatelessWidget {
                 color: isDarkMode ? Colors.white70 : Colors.black87,
               ),
             ),
-            SizedBox(height: 16),
+            SizedBox(height: 16.h),
             // People list
             _buildPeopleListCard(context, splitWith, shareAmount, isDarkMode),
-            SizedBox(height: 24),
+            SizedBox(height: 24.h),
             // Payment history section (new)
             if (bill.paymentHistory != null && bill.paymentHistory!.isNotEmpty)
               Column(
@@ -422,7 +397,7 @@ class BillDetailScreen extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  SizedBox(height: 8),
+                  SizedBox(height: 8.h),
                   Card(
                         elevation: 3,
                         shadowColor: Colors.green.withOpacity(0.2),
@@ -438,7 +413,7 @@ class BillDetailScreen extends StatelessWidget {
                               return ListTile(
                                 leading: const Icon(Icons.payment),
                                 title: Text(
-                                  ' 24${payment.amount.toStringAsFixed(2)}', // Unicode for dollar sign
+                                  '\$${payment.amount.toStringAsFixed(2)}', // Dollar sign
                                   style: TextStyle(
                                     fontFamily: 'Poppins',
                                     fontSize: 16.sp,
@@ -476,7 +451,7 @@ class BillDetailScreen extends StatelessWidget {
                         duration: const Duration(milliseconds: 1000),
                         color: Colors.green.withOpacity(0.2),
                       ),
-                  SizedBox(height: 24),
+                  SizedBox(height: 24.h),
                 ],
               ),
 
@@ -503,7 +478,7 @@ class BillDetailScreen extends StatelessWidget {
                               Icons.check_circle_outline,
                               color: Colors.white,
                             ),
-                            SizedBox(width: 8),
+                            SizedBox(width: 8.w),
                             Text(
                               'Mark as Paid',
                               style: TextStyle(
@@ -552,7 +527,7 @@ class BillDetailScreen extends StatelessWidget {
                               Icons.payments_outlined,
                               color: Theme.of(context).primaryColor,
                             ),
-                            SizedBox(width: 8),
+                            SizedBox(width: 8.w),
                             Text(
                               'Make Partial Payment',
                               style: TextStyle(
@@ -596,7 +571,7 @@ class BillDetailScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Icon(Icons.delete_outline, color: Colors.red),
-                      SizedBox(width: 8),
+                      SizedBox(width: 8.w),
                       Text(
                         'Delete Bill',
                         style: TextStyle(
@@ -623,7 +598,10 @@ class BillDetailScreen extends StatelessWidget {
     ); // End of Scaffold
   }
 
-  void _markAsPaid(BuildContext context, BillProvider billProvider) {
+  Future<void> _markAsPaid(
+    BuildContext context,
+    BillProvider billProvider,
+  ) async {
     showDialog(
       context: context,
       builder:
@@ -679,7 +657,10 @@ class BillDetailScreen extends StatelessWidget {
     );
   }
 
-  void _deleteBill(BuildContext context, BillProvider billProvider) {
+  Future<void> _deleteBill(
+    BuildContext context,
+    BillProvider billProvider,
+  ) async {
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
@@ -744,7 +725,7 @@ class BillDetailScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(height: 8),
+                SizedBox(height: 8.h),
 
                 // Warning message
                 Center(
@@ -761,7 +742,7 @@ class BillDetailScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(height: 8),
+                SizedBox(height: 8.h),
 
                 Center(
                   child: Text(
@@ -778,7 +759,7 @@ class BillDetailScreen extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(height: 24),
+                SizedBox(height: 24.h),
 
                 // Buttons
                 Row(
@@ -845,7 +826,34 @@ class BillDetailScreen extends StatelessWidget {
     );
   }
 
-  void _shareBill(BuildContext context, Bill bill) {
+  void _setReminder(BuildContext context, Bill? bill) async {
+    if (bill == null) return;
+    final DateTime? selectedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+    );
+
+    if (selectedDate == null) return;
+
+    final TimeOfDay? selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+
+    if (selectedTime == null) return;
+
+    AnimatedSnackBar.show(
+      context,
+      message:
+          'Reminder set for ${DateFormat('MMM dd, yyyy').format(selectedDate)} at ${selectedTime.format(context)}',
+      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.9),
+    );
+  }
+
+  Future<void> _shareBill(BuildContext context, Bill? bill) async {
+    if (bill == null) return;
     final title = bill.title;
     final amount = bill.amount;
     final dueDate = DateFormat('MMM dd, yyyy').format(bill.dueDate);
@@ -867,7 +875,10 @@ Sent from Savr app
     Share.share(message, subject: 'Bill Details: $title');
   }
 
-  void _makePartialPayment(BuildContext context, BillProvider billProvider) {
+  Future<void> _makePartialPayment(
+    BuildContext context,
+    BillProvider billProvider,
+  ) async {
     final bill = billProvider.getBillById(billId);
     final bool isDarkMode = Theme.of(context).brightness == Brightness.dark;
     if (bill == null) return;
@@ -930,7 +941,7 @@ Sent from Savr app
                           ),
                         ],
                       ),
-                      SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       // Bill summary
                       Card(
                         color:
@@ -943,8 +954,7 @@ Sent from Savr app
                             style: TextStyle(fontWeight: FontWeight.w600),
                           ),
                           subtitle: Text(
-                            'Due: ' +
-                                DateFormat('MMM dd, yyyy').format(bill.dueDate),
+                            'Due: ${DateFormat('MMM dd, yyyy').format(bill.dueDate)}',
                           ),
                           trailing: Text(
                             'Remaining: \$${remainingAmount.toStringAsFixed(2)}',
@@ -955,7 +965,7 @@ Sent from Savr app
                           ),
                         ),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                       // Amount field
                       TextField(
                         controller: amountController,
@@ -985,7 +995,7 @@ Sent from Savr app
                               context,
                             ).requestFocus(methodFocus),
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                       // Payment method dropdown
                       DropdownButtonFormField<String>(
                         value: selectedMethod,
@@ -1019,7 +1029,7 @@ Sent from Savr app
                                   : Colors.grey.shade50,
                         ),
                       ),
-                      SizedBox(height: 24),
+                      SizedBox(height: 24.h),
                       // Buttons
                       Row(
                         children: [
@@ -1118,8 +1128,8 @@ Sent from Savr app
                               child:
                                   isLoading
                                       ? SizedBox(
-                                        width: 20,
-                                        height: 20,
+                                        width: 20.w,
+                                        height: 20.h,
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2.5,
                                           valueColor:
@@ -1140,52 +1150,13 @@ Sent from Savr app
                           ),
                         ],
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                     ],
                   ),
                 ),
               ),
         );
       },
-    );
-  }
-
-  void _setReminder(BuildContext context, Bill bill) async {
-    final DateTime? selectedDate = await showDatePicker(
-      context: context,
-      initialDate: DateTime.now().add(const Duration(days: 1)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-
-    if (selectedDate == null) return;
-
-    // ignore: use_build_context_synchronously
-    final TimeOfDay? selectedTime = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-
-    if (selectedTime == null) return;
-
-    // Combine date and time (would be used with notification service)
-    // final reminderDateTime = DateTime(
-    //   selectedDate.year,
-    //   selectedDate.month,
-    //   selectedDate.day,
-    //   selectedTime.hour,
-    //   selectedTime.minute,
-    // );
-
-    // Here you would integrate with a notification service
-    // For example, using flutter_local_notifications
-
-    // ignore: use_build_context_synchronously
-    AnimatedSnackBar.show(
-      context,
-      message:
-          'Reminder set for ${DateFormat('MMM dd, yyyy').format(selectedDate)} at ${selectedTime.format(context)}',
-      backgroundColor: Theme.of(context).primaryColor.withOpacity(0.9),
     );
   }
 
