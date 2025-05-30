@@ -80,6 +80,87 @@ class BillDetailScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor:
           isDarkMode ? const Color(0xFF121212) : const Color(0xFFF5F7FA),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: isDarkMode ? Colors.black : Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: Offset(0, -3),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 12.h),
+        child: SafeArea(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Delete button
+              OutlinedButton.icon(
+                onPressed: () => _deleteBill(context, billProvider),
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                label: Text(
+                  "Delete",
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    color: Colors.red,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.red),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 16.w,
+                    vertical: 12.h,
+                  ),
+                ),
+              ),
+
+              // Primary action button
+              Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(left: 12.w),
+                  child:
+                      isPaid
+                          ? ElevatedButton.icon(
+                            onPressed: () => _shareBill(context, bill),
+                            icon: const Icon(Icons.share),
+                            label: Text(
+                              "Share Details",
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                            ),
+                          )
+                          : ElevatedButton.icon(
+                            onPressed:
+                                () =>
+                                    _makePartialPayment(context, billProvider),
+                            icon: const Icon(Icons.payments_outlined),
+                            label: Text(
+                              "Make Payment",
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).primaryColor,
+                              padding: EdgeInsets.symmetric(vertical: 12.h),
+                            ),
+                          ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
       appBar: AppBar(
         title: Text(
           'Bill Details',
@@ -130,20 +211,54 @@ class BillDetailScreen extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8.r),
+                    borderRadius: BorderRadius.circular(12.r),
+                    border: Border.all(
+                      color: statusColor.withOpacity(0.3),
+                      width: 1.5,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: statusColor.withOpacity(0.05),
+                        blurRadius: 8,
+                        offset: Offset(0, 2),
+                      ),
+                    ],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        status.toUpperCase(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: statusColor,
-                        ),
+                      Row(
+                        children: [
+                          Icon(
+                            status == 'paid'
+                                ? Icons.check_circle
+                                : status == 'overdue'
+                                ? Icons.warning
+                                : Icons.access_time,
+                            color: statusColor,
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            status.toUpperCase(),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                              fontFamily: 'Inter',
+                              fontSize: 14.sp,
+                            ),
+                          ),
+                        ],
                       ),
                       if (daysText.isNotEmpty)
-                        Text(daysText, style: TextStyle(color: statusColor)),
+                        Text(
+                          daysText,
+                          style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Inter',
+                            fontSize: 13.sp,
+                          ),
+                        ),
                     ],
                   ),
                 )
@@ -218,6 +333,35 @@ class BillDetailScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                ),
+              ],
+            ),
+
+            // Quick action buttons
+            SizedBox(height: 16.h),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _buildQuickActionButton(
+                  context,
+                  icon: Icons.share_outlined,
+                  label: 'Share',
+                  onPressed: () => _shareBill(context, bill),
+                ),
+                _buildQuickActionButton(
+                  context,
+                  icon: Icons.notifications_outlined,
+                  label: 'Remind',
+                  onPressed: () => _setReminder(context, bill),
+                ),
+                _buildQuickActionButton(
+                  context,
+                  icon: isPaid ? Icons.history : Icons.payments_outlined,
+                  label: isPaid ? 'History' : 'Pay',
+                  onPressed:
+                      isPaid
+                          ? () {} // Show payment history
+                          : () => _makePartialPayment(context, billProvider),
                 ),
               ],
             ),
@@ -345,6 +489,75 @@ class BillDetailScreen extends StatelessWidget {
                           ],
                         ),
                       ],
+
+                      // Payment progress section
+                      Divider(
+                        height: 24.h,
+                        color:
+                            isDarkMode
+                                ? Colors.grey.shade800
+                                : Colors.grey.shade200,
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Payment Progress',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 14.sp,
+                              color:
+                                  isDarkMode ? Colors.white70 : Colors.black54,
+                            ),
+                          ),
+                          SizedBox(height: 8.h),
+                          LinearProgressIndicator(
+                            value:
+                                bill.paidAmount != null
+                                    ? (bill.paidAmount! / bill.amount).clamp(
+                                      0.0,
+                                      1.0,
+                                    )
+                                    : 0.0,
+                            backgroundColor: Colors.grey.withOpacity(0.2),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              bill.paid
+                                  ? Colors.green
+                                  : Theme.of(context).primaryColor,
+                            ),
+                            minHeight: 8.h,
+                            borderRadius: BorderRadius.circular(4.r),
+                          ),
+                          SizedBox(height: 4.h),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                '\$${bill.paidAmount?.toStringAsFixed(2) ?? '0.00'}',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.sp,
+                                  color:
+                                      isDarkMode
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                ),
+                              ),
+                              Text(
+                                '\$${bill.amount.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 12.sp,
+                                  color:
+                                      isDarkMode
+                                          ? Colors.white70
+                                          : Colors.black54,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ], // End of amount card children
                   ), // End of amount card Column
                 ) // End of amount card Container
@@ -381,8 +594,88 @@ class BillDetailScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 16.h),
+            // Split visualization
+            _buildSplitVisualization(
+              context,
+              splitWith,
+              shareAmount,
+              isDarkMode,
+            ),
+            SizedBox(height: 16.h),
             // People list
             _buildPeopleListCard(context, splitWith, shareAmount, isDarkMode),
+            SizedBox(height: 16.h),
+            // Split visualization
+            _buildSplitVisualization(
+              context,
+              splitWith,
+              shareAmount,
+              isDarkMode,
+            ),
+            SizedBox(height: 24.h),
+
+            // Additional details section
+            Card(
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12.r),
+              ),
+              color: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              child: ExpansionTile(
+                title: Text(
+                  'Additional Details',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 16.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                tilePadding: EdgeInsets.symmetric(
+                  horizontal: 16.w,
+                  vertical: 8.h,
+                ),
+                childrenPadding: EdgeInsets.only(
+                  left: 16.w,
+                  right: 16.w,
+                  bottom: 16.h,
+                ),
+                expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (bill.description?.isNotEmpty ?? false) ...[
+                    Text(
+                      'Description',
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                        color: isDarkMode ? Colors.white70 : Colors.black54,
+                      ),
+                    ),
+                    SizedBox(height: 4.h),
+                    Text(
+                      bill.description ?? 'No description provided',
+                      style: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
+                    ),
+                    SizedBox(height: 12.h),
+                  ],
+                  Text(
+                    'Category',
+                    style: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 14.sp,
+                      fontWeight: FontWeight.w500,
+                      color: isDarkMode ? Colors.white70 : Colors.black54,
+                    ),
+                  ),
+                  SizedBox(height: 4.h),
+                  Text(
+                    category,
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
+                  ),
+                ],
+              ),
+            ),
+
             SizedBox(height: 24.h),
             // Payment history section (new)
             if (bill.paymentHistory != null && bill.paymentHistory!.isNotEmpty)
@@ -554,44 +847,7 @@ class BillDetailScreen extends StatelessWidget {
                 ],
               ),
 
-            SizedBox(height: 12.h),
-
-            OutlinedButton(
-                  onPressed: () => _deleteBill(context, billProvider),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.red, width: 1.5),
-                    minimumSize: Size(double.infinity, 54.h),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                    backgroundColor: isDarkMode ? Colors.black12 : Colors.white,
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.delete_outline, color: Colors.red),
-                      SizedBox(width: 8.w),
-                      Text(
-                        'Delete Bill',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.red,
-                        ),
-                      ),
-                    ],
-                  ),
-                )
-                .animate()
-                .fadeIn(
-                  duration: const Duration(milliseconds: 300),
-                  delay: const Duration(milliseconds: 600),
-                )
-                .slideY(begin: 0.1, end: 0)
-                .then(delay: const Duration(milliseconds: 200))
-                .blurY(begin: 4, end: 0),
+            SizedBox(height: 24.h), // Just adding some bottom padding
           ], // End of main Column children
         ), // End of main Column
       ), // End of SingleChildScrollView
@@ -986,6 +1242,16 @@ Sent from Savr app
                               isDarkMode
                                   ? Colors.grey.shade800
                                   : Colors.grey.shade50,
+                          helperText:
+                              'Maximum: \$${remainingAmount.toStringAsFixed(2)}',
+                          suffixIcon: IconButton(
+                            icon: const Icon(Icons.money),
+                            tooltip: 'Pay full amount',
+                            onPressed: () {
+                              amountController.text = remainingAmount
+                                  .toStringAsFixed(2);
+                            },
+                          ),
                         ),
                         onChanged: (_) {
                           setState(() => amountError = null);
@@ -1130,7 +1396,7 @@ Sent from Savr app
                                       ? SizedBox(
                                         width: 20.w,
                                         height: 20.h,
-                                        child: CircularProgressIndicator(
+                                        child: const CircularProgressIndicator(
                                           strokeWidth: 2.5,
                                           valueColor:
                                               AlwaysStoppedAnimation<Color>(
@@ -1287,4 +1553,134 @@ Sent from Savr app
           duration: const Duration(milliseconds: 300),
         );
   }
+
+  Widget _buildQuickActionButton(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(8.r),
+      child: Padding(
+        padding: EdgeInsets.symmetric(vertical: 8.h, horizontal: 12.w),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.all(10.r),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                size: 24.sp,
+                color: Theme.of(context).primaryColor,
+              ),
+            ),
+            SizedBox(height: 4.h),
+            Text(label, style: TextStyle(fontFamily: 'Inter', fontSize: 12.sp)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSplitVisualization(
+    BuildContext context,
+    List<String> splitWith,
+    double shareAmount,
+    bool isDarkMode,
+  ) {
+    return Container(
+      height: 120.h,
+      padding: EdgeInsets.all(16.w),
+      decoration: BoxDecoration(
+        color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(16.r),
+      ),
+      child: Row(
+        children: [
+          // Pie chart visualization
+          SizedBox(
+            width: 80.w,
+            height: 80.w,
+            child: CustomPaint(
+              painter: BillSplitPainter(
+                splitCount: splitWith.length + 1,
+                colors: [
+                  Theme.of(context).primaryColor,
+                  ...List.generate(
+                    splitWith.length,
+                    (index) => Color.fromARGB(
+                      255,
+                      150 + (index * 20) % 105,
+                      100 + (index * 30) % 155,
+                      200 - (index * 25) % 100,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          SizedBox(width: 16.w),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Split equally ${splitWith.length + 1} ways',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 14.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 4.h),
+                Text(
+                  'Each person pays \$${shareAmount.toStringAsFixed(2)}',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 14.sp,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Simple painter for pie chart visualization
+class BillSplitPainter extends CustomPainter {
+  final int splitCount;
+  final List<Color> colors;
+
+  BillSplitPainter({required this.splitCount, required this.colors});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    final paint = Paint()..style = PaintingStyle.fill;
+
+    for (int i = 0; i < splitCount; i++) {
+      paint.color = colors[i % colors.length];
+      canvas.drawArc(
+        rect,
+        i * 2 * 3.14159 / splitCount,
+        2 * 3.14159 / splitCount,
+        true,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

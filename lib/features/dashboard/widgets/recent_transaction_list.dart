@@ -9,6 +9,38 @@ class RecentTransactionList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (transactions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 64.sp,
+              color: Theme.of(context).hintColor.withOpacity(0.5),
+            ),
+            SizedBox(height: 16.h),
+            Text(
+              'No transactions yet',
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w600,
+                color: Theme.of(context).hintColor,
+              ),
+            ),
+            SizedBox(height: 8.h),
+            Text(
+              'Tap + to add your first transaction',
+              style: TextStyle(
+                fontSize: 14.sp,
+                color: Theme.of(context).hintColor.withOpacity(0.7),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),

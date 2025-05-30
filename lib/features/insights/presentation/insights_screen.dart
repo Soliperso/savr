@@ -5,11 +5,11 @@ import '../../../providers/bill_provider.dart';
 import '../../../providers/insights_provider.dart';
 import '../../../providers/transaction_provider.dart';
 import '../widgets/insight_chart.dart';
+import '../models/financial_insight.dart';
 
 class InsightsScreen extends StatelessWidget {
   const InsightsScreen({super.key});
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -32,25 +32,80 @@ class InsightsScreen extends StatelessWidget {
           billProvider,
           _,
         ) {
-          // Prepare data for each card
-          final expenseInsights = insightsProvider.getExpensePatternInsights(
-            transactionProvider.transactions,
-          );
-          final billAdvice = insightsProvider.getBillAdvice(
-            billProvider.bills
-                .map(
-                  (b) => {
-                    'amount': b.amount,
-                    'paid': b.paid,
-                    'splitWith': b.splitWith,
-                    'title': b.title,
-                  },
-                )
-                .toList(),
-          );
+          final insights = [
+            FinancialInsight(
+              title: 'Spending Patterns',
+              description:
+                  insightsProvider
+                      .getExpensePatternInsights(
+                        transactionProvider.transactions,
+                      )
+                      .firstOrNull ??
+                  'No spending pattern insights available yet.',
+              trendData:
+                  transactionProvider.transactions
+                      .map(
+                        (t) => double.tryParse(t['amount'].toString()) ?? 0.0,
+                      )
+                      .toList(),
+              date: DateTime.now(),
+              type: InsightType.spending,
+            ),
+            FinancialInsight(
+              title: 'Bill Management',
+              description:
+                  insightsProvider
+                      .getBillAdvice(
+                        billProvider.bills
+                            .map(
+                              (b) => {
+                                'amount': b.amount,
+                                'paid': b.paid,
+                                'splitWith': b.splitWith,
+                                'title': b.title,
+                              },
+                            )
+                            .toList(),
+                      )
+                      .firstOrNull ??
+                  'No bill advice available yet.',
+              trendData:
+                  billProvider.bills.map((b) => b.amount.toDouble()).toList(),
+              date: DateTime.now(),
+              type: InsightType.budgeting,
+            ),
+            FinancialInsight(
+              title: 'Budgeting Tips',
+              description:
+                  insightsProvider
+                      .getBillAdvice(
+                        billProvider.bills
+                            .map(
+                              (b) => {
+                                'amount': b.amount,
+                                'paid': b.paid,
+                                'splitWith': b.splitWith,
+                                'title': b.title,
+                              },
+                            )
+                            .toList(),
+                      )
+                      .skip(1)
+                      .firstOrNull ??
+                  'No additional budgeting tips available yet.',
+              trendData:
+                  billProvider.bills.map((b) => b.amount.toDouble()).toList(),
+              date: DateTime.now(),
+              type: InsightType.trending,
+            ),
+          ];
 
-          // If no data, show empty state
-          if (expenseInsights.isEmpty && billAdvice.isEmpty) {
+          // If no insights available, show empty state
+          if (insights.every(
+            (insight) =>
+                insight.trendData.isEmpty ||
+                insight.description.startsWith('No'),
+          )) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -71,7 +126,7 @@ class InsightsScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8.h),
                   Text(
-                    'Add more bills to get personalized insights',
+                    'Add more transactions and bills to get personalized insights',
                     style: TextStyle(
                       fontFamily: 'Inter',
                       fontSize: 14.sp,
@@ -84,91 +139,65 @@ class InsightsScreen extends StatelessWidget {
             );
           }
 
-          // Three beautiful, detailed, interactive cards
-          return ListView(
+          return ListView.separated(
             padding: EdgeInsets.symmetric(vertical: 16.h, horizontal: 16.w),
-            children: [
-              _DetailedInsightCard(
-                title: 'Spending Patterns',
-                description:
-                    expenseInsights.isNotEmpty
-                        ? expenseInsights.first
-                        : 'No spending pattern insights available yet.',
-                color: Colors.blueAccent.withOpacity(0.7),
-                icon: Icons.trending_up,
-                chartData:
-                    transactionProvider.transactions
-                        .map((t) => (t['amount'] as double))
-                        .toList(),
+            itemCount: insights.length,
+            separatorBuilder: (context, index) => SizedBox(height: 20.h),
+            itemBuilder: (context, index) {
+              final insight = insights[index];
+              return _DetailedInsightCard(
+                insight: insight,
+                color: _getColorForInsightType(insight.type),
+                icon: _getIconForInsightType(insight.type),
                 customChart: InsightChart(
-                  data:
-                      transactionProvider.transactions
-                          .map((t) => (t['amount'] as double))
-                          .toList(),
-                  lineColor: Colors.blueAccent,
+                  data: insight.trendData,
+                  lineColor: _getColorForInsightType(insight.type),
                 ),
-              ),
-              SizedBox(height: 20.h),
-              _DetailedInsightCard(
-                title: 'Bill Management',
-                description:
-                    billAdvice.isNotEmpty
-                        ? billAdvice.first
-                        : 'No bill advice available yet.',
-                color: Colors.purpleAccent.withOpacity(0.7),
-                icon: Icons.receipt_long,
-                chartData:
-                    billProvider.bills.map((b) => b.amount as double).toList(),
-                customChart: InsightChart(
-                  data:
-                      billProvider.bills
-                          .map((b) => b.amount as double)
-                          .toList(),
-                  lineColor: Colors.purpleAccent,
-                ),
-              ),
-              SizedBox(height: 20.h),
-              _DetailedInsightCard(
-                title: 'Budgeting Tips',
-                description:
-                    billAdvice.length > 1
-                        ? billAdvice[1]
-                        : 'No additional budgeting tips available yet.',
-                color: Colors.greenAccent.withOpacity(0.7),
-                icon: Icons.savings,
-                chartData:
-                    billProvider.bills.map((b) => b.amount as double).toList(),
-                customChart: InsightChart(
-                  data:
-                      billProvider.bills
-                          .map((b) => b.amount as double)
-                          .toList(),
-                  lineColor: Colors.greenAccent,
-                ),
-              ),
-            ],
+              );
+            },
           );
         },
       ),
     );
   }
+
+  Color _getColorForInsightType(InsightType type) {
+    switch (type) {
+      case InsightType.spending:
+        return Colors.blueAccent.withOpacity(0.7);
+      case InsightType.budgeting:
+        return Colors.purpleAccent.withOpacity(0.7);
+      case InsightType.trending:
+        return Colors.greenAccent.withOpacity(0.7);
+      case InsightType.saving:
+        return Colors.orangeAccent.withOpacity(0.7);
+    }
+  }
+
+  IconData _getIconForInsightType(InsightType type) {
+    switch (type) {
+      case InsightType.spending:
+        return Icons.trending_up;
+      case InsightType.budgeting:
+        return Icons.receipt_long;
+      case InsightType.trending:
+        return Icons.savings;
+      case InsightType.saving:
+        return Icons.account_balance_wallet;
+    }
+  }
 }
 
-// Add a new widget for the detailed, interactive card
 class _DetailedInsightCard extends StatefulWidget {
-  final String title;
-  final String description;
+  final FinancialInsight insight;
   final Color color;
   final IconData icon;
-  final List<double> chartData;
   final Widget? customChart;
 
   const _DetailedInsightCard({
-    required this.title,
-    required this.description,
+    required this.insight,
     required this.color,
     required this.icon,
-    required this.chartData,
     this.customChart,
   });
 
@@ -216,14 +245,35 @@ class _DetailedInsightCardState extends State<_DetailedInsightCard> {
               ),
               SizedBox(width: 16.w),
               Expanded(
-                child: Text(
-                  widget.title,
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18.sp,
-                    color: Colors.black87,
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.insight.title,
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18.sp,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    if (widget.insight.trendData.isNotEmpty) ...[
+                      SizedBox(height: 4.h),
+                      Text(
+                        widget.insight.isIncreasing
+                            ? 'Trending Up'
+                            : 'Trending Down',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 12.sp,
+                          color:
+                              widget.insight.isIncreasing
+                                  ? Colors.green
+                                  : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               IconButton(
@@ -237,7 +287,7 @@ class _DetailedInsightCardState extends State<_DetailedInsightCard> {
           ),
           SizedBox(height: 12.h),
           Text(
-            widget.description,
+            widget.insight.description,
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 15.sp,
@@ -246,6 +296,29 @@ class _DetailedInsightCardState extends State<_DetailedInsightCard> {
           ),
           if (_expanded) ...[
             SizedBox(height: 18.h),
+            if (widget.insight.trendData.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _StatItem(
+                    label: 'Average',
+                    value: widget.insight.average.toStringAsFixed(2),
+                    color: widget.color,
+                  ),
+                  _StatItem(
+                    label: 'Highest',
+                    value: widget.insight.highestValue.toStringAsFixed(2),
+                    color: widget.color,
+                  ),
+                  _StatItem(
+                    label: 'Lowest',
+                    value: widget.insight.lowestValue.toStringAsFixed(2),
+                    color: widget.color,
+                  ),
+                ],
+              ),
+              SizedBox(height: 18.h),
+            ],
             widget.customChart ??
                 Container(
                   height: 80.h,
@@ -266,6 +339,44 @@ class _DetailedInsightCardState extends State<_DetailedInsightCard> {
           ],
         ],
       ),
+    );
+  }
+}
+
+class _StatItem extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _StatItem({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 12.sp,
+            color: Colors.black54,
+          ),
+        ),
+        SizedBox(height: 4.h),
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'Poppins',
+            fontSize: 16.sp,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
     );
   }
 }

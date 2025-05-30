@@ -95,6 +95,10 @@ class PendingBillsList extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
+                    contentPadding: EdgeInsets.symmetric(
+                      vertical: 10.h,
+                      horizontal: 16.w,
+                    ),
                     subtitle: Row(
                       children: [
                         Text(
@@ -129,10 +133,6 @@ class PendingBillsList extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                         color: chipColor,
                       ),
-                    ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12.w,
-                      vertical: 2.h,
                     ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12.r),

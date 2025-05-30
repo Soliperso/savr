@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -28,11 +29,26 @@ class _AddBillScreenState extends State<AddBillScreen> {
   final List<String> _selectedFriends = [];
   final List<String> _invitedEmails = [];
   bool _isSplitEqually = true;
+  String _selectedCategory = 'Other';
 
   // Add custom split amount controllers
   final Map<String, TextEditingController> _splitAmountControllers = {};
   double _remainingAmount = 0.0;
   double _yourCustomShare = 0.0;
+
+  // Bill categories
+  final List<Map<String, dynamic>> _categories = [
+    {'name': 'Rent', 'icon': Icons.home},
+    {'name': 'Utilities', 'icon': Icons.power},
+    {'name': 'Groceries', 'icon': Icons.shopping_basket},
+    {'name': 'Dining', 'icon': Icons.restaurant},
+    {'name': 'Transportation', 'icon': Icons.directions_car},
+    {'name': 'Entertainment', 'icon': Icons.movie},
+    {'name': 'Shopping', 'icon': Icons.shopping_bag},
+    {'name': 'Travel', 'icon': Icons.flight},
+    {'name': 'Healthcare', 'icon': Icons.local_hospital},
+    {'name': 'Other', 'icon': Icons.more_horiz},
+  ];
 
   @override
   void initState() {
@@ -166,15 +182,37 @@ class _AddBillScreenState extends State<AddBillScreen> {
                           prefixIcon: const Icon(Icons.description),
                           filled: true,
                           fillColor: inputFillColor,
+                          helperText: 'Enter a clear, descriptive title',
+                          helperStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                          ),
                         ),
                         style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter a title';
                           }
+                          if (value.length < 3) {
+                            return 'Title must be at least 3 characters';
+                          }
+                          if (value.length > 50) {
+                            return 'Title must be less than 50 characters';
+                          }
                           return null;
                         },
                         textInputAction: TextInputAction.next,
+                        maxLength: 50,
+                        buildCounter:
+                            (
+                              context, {
+                              required currentLength,
+                              required isFocused,
+                              maxLength,
+                            }) => Text(
+                              '$currentLength/$maxLength',
+                              style: TextStyle(fontSize: 12.sp),
+                            ),
                       ),
                       SizedBox(height: 16.h),
                       TextFormField(
@@ -191,9 +229,25 @@ class _AddBillScreenState extends State<AddBillScreen> {
                           prefixIcon: const Icon(Icons.notes),
                           filled: true,
                           fillColor: inputFillColor,
+                          helperText: 'Add any details about the bill',
+                          helperStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                          ),
                         ),
                         style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
                         maxLines: 2,
+                        maxLength: 200,
+                        buildCounter:
+                            (
+                              context, {
+                              required currentLength,
+                              required isFocused,
+                              maxLength,
+                            }) => Text(
+                              '$currentLength/$maxLength',
+                              style: TextStyle(fontSize: 12.sp),
+                            ),
                         textInputAction: TextInputAction.next,
                       ),
                       SizedBox(height: 16.h),
@@ -216,15 +270,34 @@ class _AddBillScreenState extends State<AddBillScreen> {
                           prefixIcon: const Icon(Icons.attach_money),
                           filled: true,
                           fillColor: inputFillColor,
+                          helperText: 'Enter the total bill amount',
+                          helperStyle: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                          ),
                         ),
                         style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                        keyboardType: TextInputType.number,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d{0,2}'),
+                          ),
+                        ],
                         validator: (value) {
                           if (value == null || value.isEmpty) {
                             return 'Please enter an amount';
                           }
-                          if (double.tryParse(value) == null) {
+                          final amount = double.tryParse(value);
+                          if (amount == null) {
                             return 'Please enter a valid number';
+                          }
+                          if (amount <= 0) {
+                            return 'Amount must be greater than 0';
+                          }
+                          if (amount > 1000000) {
+                            return 'Amount cannot exceed \$1,000,000';
                           }
                           return null;
                         },
@@ -232,154 +305,263 @@ class _AddBillScreenState extends State<AddBillScreen> {
                       ),
                       SizedBox(height: 16.h),
                       _buildDatePicker(),
+                      SizedBox(height: 16.h),
+                      _buildCategorySelector(),
                     ],
                   ),
                 ),
               ),
               SizedBox(height: 24.h),
-              // Split method selector
-              Text(
-                'Split Method',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w500,
-                  color: primaryColor,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              SegmentedButton<bool>(
-                segments: [
-                  ButtonSegment<bool>(
-                    value: true,
-                    label: Text(
-                      'Split Equally',
-                      style: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
-                    ),
-                    icon: const Icon(Icons.balance),
-                  ),
-                  ButtonSegment<bool>(
-                    value: false,
-                    label: Text(
-                      'Custom Split',
-                      style: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
-                    ),
-                    icon: const Icon(Icons.pie_chart),
-                  ),
-                ],
-                selected: {_isSplitEqually},
-                onSelectionChanged: (Set<bool> selection) {
-                  setState(() {
-                    _isSplitEqually = selection.first;
-                  });
-                },
-                style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.resolveWith<Color?>((
-                    states,
-                  ) {
-                    if (states.contains(MaterialState.selected)) {
-                      return primaryColor.withOpacity(0.13);
-                    }
-                    return inputFillColor;
-                  }),
-                  foregroundColor: MaterialStateProperty.all(primaryColor),
-                  shape: MaterialStateProperty.all(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12.r),
-                    ),
-                  ),
-                  overlayColor: MaterialStateProperty.all(
-                    primaryColor.withOpacity(0.08),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16.h),
-              _buildCustomSplitSection(),
-              SizedBox(height: 24.h),
-              // Select friends section
-              Text(
-                'Split With',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w500,
-                  color: primaryColor,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              _buildFriendSelector(),
-              SizedBox(height: 16.h),
-              // Invite by email section
-              Text(
-                'Invite Others',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 16.sp,
-                  fontWeight: FontWeight.w500,
-                  color: primaryColor,
-                ),
-              ),
-              SizedBox(height: 8.h),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _emailController,
-                      decoration: InputDecoration(
-                        hintText: 'Enter email address',
-                        hintStyle: TextStyle(fontSize: 14.sp),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10.r),
-                        ),
-                        prefixIcon: const Icon(Icons.email),
-                        filled: true,
-                        fillColor: inputFillColor,
-                      ),
-                      style: TextStyle(fontFamily: 'Inter', fontSize: 16.sp),
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                  ),
-                  SizedBox(width: 8.w),
-                  IconButton(
-                    icon: const Icon(Icons.send),
-                    onPressed: _inviteByEmail,
-                    style: IconButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
 
-              // Invited emails list
-              if (_invitedEmails.isNotEmpty) ...[
-                SizedBox(height: 8.h),
-                Wrap(
-                  spacing: 8.w,
-                  runSpacing: 8.h,
-                  children:
-                      _invitedEmails.map((email) {
-                        return Chip(
-                          label: Text(
-                            email,
+              // Split method and friends section card
+              Card(
+                elevation: 2,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.r),
+                  side: BorderSide(
+                    color: borderColor ?? Colors.grey,
+                    width: 1.1,
+                  ),
+                ),
+                child: Padding(
+                  padding: EdgeInsets.all(16.w),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Split method selector
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.group_work,
+                            color: primaryColor,
+                            size: 24.sp,
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Split Method',
                             style: TextStyle(
                               fontFamily: 'Inter',
-                              fontSize: 12.sp,
-                              color: Colors.white,
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                              color: primaryColor,
                             ),
                           ),
-                          backgroundColor: Theme.of(context).primaryColor,
-                          deleteIcon: const Icon(Icons.close, size: 16),
-                          onDeleted: () {
-                            setState(() {
-                              _invitedEmails.remove(email);
-                            });
-                          },
-                        );
-                      }).toList(),
-                ),
-              ],
+                        ],
+                      ),
+                      SizedBox(height: 12.h),
+                      SegmentedButton<bool>(
+                        segments: [
+                          ButtonSegment<bool>(
+                            value: true,
+                            label: Text(
+                              'Split Equally',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                            icon: const Icon(Icons.balance),
+                          ),
+                          ButtonSegment<bool>(
+                            value: false,
+                            label: Text(
+                              'Custom Split',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                            icon: const Icon(Icons.pie_chart),
+                          ),
+                        ],
+                        selected: {_isSplitEqually},
+                        onSelectionChanged: (Set<bool> selection) {
+                          setState(() {
+                            _isSplitEqually = selection.first;
+                          });
+                        },
+                        style: ButtonStyle(
+                          backgroundColor:
+                              MaterialStateProperty.resolveWith<Color?>((
+                                states,
+                              ) {
+                                if (states.contains(MaterialState.selected)) {
+                                  return primaryColor.withOpacity(0.13);
+                                }
+                                return inputFillColor;
+                              }),
+                          foregroundColor: MaterialStateProperty.all(
+                            primaryColor,
+                          ),
+                          shape: MaterialStateProperty.all(
+                            RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12.r),
+                            ),
+                          ),
+                          overlayColor: MaterialStateProperty.all(
+                            primaryColor.withOpacity(0.08),
+                          ),
+                        ),
+                      ),
+                      if (!_isSplitEqually) ...[
+                        SizedBox(height: 16.h),
+                        _buildCustomSplitSection(),
+                      ],
 
+                      Divider(height: 32.h, color: borderColor),
+
+                      // Split With section
+                      Row(
+                        children: [
+                          Icon(Icons.people, color: primaryColor, size: 24.sp),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Split With',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 12.h),
+                      _buildFriendSelector(),
+
+                      Divider(height: 32.h, color: borderColor),
+
+                      // Invite Others section
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.person_add,
+                            color: primaryColor,
+                            size: 24.sp,
+                          ),
+                          SizedBox(width: 8.w),
+                          Text(
+                            'Invite Others',
+                            style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 16.sp,
+                              fontWeight: FontWeight.w500,
+                              color: primaryColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 12.h),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: _emailController,
+                              decoration: InputDecoration(
+                                hintText: 'Enter email address',
+                                hintStyle: TextStyle(fontSize: 14.sp),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10.r),
+                                ),
+                                prefixIcon: Icon(
+                                  Icons.email,
+                                  color: Colors.grey[600],
+                                ),
+                                filled: true,
+                                fillColor: inputFillColor,
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 16.w,
+                                  vertical: 12.h,
+                                ),
+                              ),
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 16.sp,
+                              ),
+                              keyboardType: TextInputType.emailAddress,
+                            ),
+                          ),
+                          SizedBox(width: 8.w),
+                          ElevatedButton.icon(
+                            onPressed: _inviteByEmail,
+                            icon: const Icon(Icons.send),
+                            label: Text(
+                              'Invite',
+                              style: TextStyle(
+                                fontFamily: 'Inter',
+                                fontSize: 14.sp,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 16.w,
+                                vertical: 12.h,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8.r),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (_invitedEmails.isNotEmpty) ...[
+                        SizedBox(height: 12.h),
+                        Container(
+                          padding: EdgeInsets.all(12.w),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[100],
+                            borderRadius: BorderRadius.circular(8.r),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Invited Users',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.grey[700],
+                                ),
+                              ),
+                              SizedBox(height: 8.h),
+                              Wrap(
+                                spacing: 8.w,
+                                runSpacing: 8.h,
+                                children:
+                                    _invitedEmails.map((email) {
+                                      return Chip(
+                                        label: Text(
+                                          email,
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 12.sp,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        backgroundColor: primaryColor,
+                                        deleteIcon: const Icon(
+                                          Icons.close,
+                                          size: 16,
+                                        ),
+                                        onDeleted: () {
+                                          setState(() {
+                                            _invitedEmails.remove(email);
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
               SizedBox(height: 24.h),
 
               // Split preview
@@ -450,6 +632,8 @@ class _AddBillScreenState extends State<AddBillScreen> {
 
   Widget _buildFriendSelector() {
     final groupMembers = _group.members;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
 
     return Wrap(
       spacing: 8.w,
@@ -464,7 +648,13 @@ class _AddBillScreenState extends State<AddBillScreen> {
                 style: TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 14.sp,
-                  color: isSelected ? Colors.white : Colors.black87,
+                  color:
+                      isSelected
+                          ? Colors.white
+                          : isDark
+                          ? Colors.white70
+                          : Colors.black87,
+                  fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                 ),
               ),
               onSelected: (selected) {
@@ -477,7 +667,21 @@ class _AddBillScreenState extends State<AddBillScreen> {
                 });
               },
               selectedColor: Color(_group.color ?? 0xFF000000),
+              backgroundColor: isDark ? Colors.grey[800] : Colors.grey[200],
               checkmarkColor: Colors.white,
+              padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8.r),
+                side: BorderSide(
+                  color:
+                      isSelected
+                          ? Color(_group.color ?? 0xFF000000)
+                          : isDark
+                          ? Colors.grey[600]!
+                          : Colors.grey[400]!,
+                  width: 1,
+                ),
+              ),
             );
           }).toList(),
     );
@@ -821,6 +1025,113 @@ class _AddBillScreenState extends State<AddBillScreen> {
     );
   }
 
+  Widget _buildCategorySelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.category,
+              size: 20.sp,
+              color: Color(_group.color ?? 0xFF000000),
+            ),
+            SizedBox(width: 8.w),
+            Text(
+              'Category',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w500,
+                color: Color(_group.color ?? 0xFF000000),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 8.h),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12.r),
+          ),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.all(8.w),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              childAspectRatio: 3,
+              crossAxisSpacing: 8.w,
+              mainAxisSpacing: 8.h,
+            ),
+            itemCount: _categories.length,
+            itemBuilder: (context, index) {
+              final category = _categories[index];
+              final isSelected = _selectedCategory == category['name'];
+
+              return InkWell(
+                onTap:
+                    () => setState(
+                      () => _selectedCategory = category['name'] as String,
+                    ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color:
+                        isSelected
+                            ? Color(_group.color ?? 0xFF000000).withOpacity(0.1)
+                            : Colors.transparent,
+                    borderRadius: BorderRadius.circular(8.r),
+                    border: Border.all(
+                      color:
+                          isSelected
+                              ? Color(_group.color ?? 0xFF000000)
+                              : Colors.grey.shade300,
+                    ),
+                  ),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 12.w,
+                    vertical: 8.h,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        category['icon'] as IconData,
+                        size: 20.sp,
+                        color:
+                            isSelected
+                                ? Color(_group.color ?? 0xFF000000)
+                                : Colors.grey.shade600,
+                      ),
+                      SizedBox(width: 8.w),
+                      Expanded(
+                        child: Text(
+                          category['name'] as String,
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 14.sp,
+                            color:
+                                isSelected
+                                    ? Color(_group.color ?? 0xFF000000)
+                                    : Colors.grey.shade600,
+                            fontWeight:
+                                isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.normal,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   Future<void> _selectDate() async {
     final pickedDate = await showDatePicker(
       context: context,
@@ -956,6 +1267,7 @@ Download SavvySplit to start splitting bills with friends!
         dueDate: _dueDate,
         splitWith: [..._selectedFriends, ..._invitedEmails],
         customSplits: customSplits,
+        category: _selectedCategory,
       );
 
       // Show success message

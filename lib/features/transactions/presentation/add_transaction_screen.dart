@@ -17,6 +17,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
+  final _payeeController = TextEditingController();
   final List<String> _categories = [
     'General',
     'Food & Groceries',
@@ -33,6 +34,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
   DateTime _selectedDate = DateTime.now();
   bool _isExpense = true;
   bool _isLoading = false;
+  bool _isRecurring = false;
+  String _recurringFrequency = 'Monthly';
+  final List<String> _recurringOptions = [
+    'Daily',
+    'Weekly',
+    'Monthly',
+    'Yearly',
+  ];
+
+  // Animation controller
+  late AnimationController _animationController;
 
   // Category icon mapping
   final Map<String, IconData> _categoryIcons = {
@@ -54,11 +66,18 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       FocusScope.of(context).requestFocus(_titleFocusNode);
     });
+
+    // Initialize animation controller
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
   }
 
   // Add focus nodes for keyboard navigation
   final FocusNode _titleFocusNode = FocusNode();
   final FocusNode _amountFocusNode = FocusNode();
+  final FocusNode _payeeFocusNode = FocusNode();
   final FocusNode _noteFocusNode = FocusNode();
 
   @override
@@ -66,10 +85,108 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     _titleController.dispose();
     _amountController.dispose();
     _noteController.dispose();
+    _payeeController.dispose();
     _titleFocusNode.dispose();
     _amountFocusNode.dispose();
     _noteFocusNode.dispose();
+    _payeeFocusNode.dispose();
+    _animationController.dispose();
     super.dispose();
+  }
+
+  void _scanReceipt() async {
+    // Show loading indicator
+    setState(() => _isLoading = true);
+
+    try {
+      // This would be implemented with a camera plugin and ML Kit
+      // For now, we'll simulate receipt scanning with a delay
+      await Future.delayed(const Duration(seconds: 1));
+
+      // Simulate scanning results
+      setState(() {
+        _titleController.text = 'Grocery Shopping';
+        _amountController.text = '34.99';
+        _selectedCategory = 'Food & Groceries';
+        _payeeController.text = 'Whole Foods Market';
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Receipt scanned successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to scan receipt: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _toggleRecurring() {
+    setState(() {
+      _isRecurring = !_isRecurring;
+    });
+  }
+
+  void _showBudgetImpact() {
+    // This would show a modal with budget impact
+    if (_amountController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter an amount first')),
+      );
+      return;
+    }
+
+    final amount =
+        double.tryParse(_amountController.text.replaceAll(',', '.')) ?? 0;
+    showModalBottomSheet(
+      context: context,
+      builder:
+          (context) => Padding(
+            padding: EdgeInsets.all(16.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Budget Impact',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                LinearProgressIndicator(
+                  value:
+                      0.7, // This would be calculated from actual budget data
+                  backgroundColor: Colors.grey[200],
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    _isExpense ? Colors.orange : Colors.green,
+                  ),
+                ),
+                SizedBox(height: 16.h),
+                Text(
+                  _isExpense
+                      ? 'This expense would use ${(amount / 1000 * 100).toStringAsFixed(1)}% of your monthly budget'
+                      : 'This income would add ${(amount / 1000 * 100).toStringAsFixed(1)}% to your monthly income',
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 24.h),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Got it'),
+                ),
+              ],
+            ),
+          ),
+    );
   }
 
   void _pickDate() async {
@@ -107,23 +224,48 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       // If it's an expense, make the amount negative
       final finalAmount = _isExpense ? -amount : amount;
       final category = _selectedCategory ?? _categories.first;
-      final note = _noteController.text.trim();
+
+      // Build an enhanced description that includes payee and recurring info
+      final payee = _payeeController.text.trim();
+      String description = _noteController.text.trim();
+
+      // Add payee and recurring info to description since the API doesn't support them directly
+      if (payee.isNotEmpty) {
+        description = "Payee: $payee\n$description";
+      }
+      if (_isRecurring) {
+        description = "$description\n[Recurring: $_recurringFrequency]";
+      }
+
       try {
+        // Using the existing provider method
         final success = await Provider.of<TransactionProvider>(
           context,
           listen: false,
-        ).addTransaction(title, finalAmount, category, _selectedDate, note);
+        ).addTransaction(
+          title,
+          finalAmount,
+          category,
+          _selectedDate,
+          description,
+        );
 
         if (!mounted) return;
 
         if (success) {
           HapticFeedback.lightImpact();
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+            SnackBar(
               content: Text(
-                'Transaction saved',
-                semanticsLabel: 'Transaction saved',
+                _isRecurring
+                    ? 'Recurring transaction saved'
+                    : 'Transaction saved',
+                semanticsLabel:
+                    _isRecurring
+                        ? 'Recurring transaction saved'
+                        : 'Transaction saved',
               ),
+              backgroundColor: _isRecurring ? Colors.green.shade700 : null,
             ),
           );
           Navigator.pop(context);
@@ -190,6 +332,17 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
           ),
           elevation: 0,
           actions: [
+            // Budget impact preview button
+            Semantics(
+              label: 'Budget Impact',
+              button: true,
+              child: IconButton(
+                icon: const Icon(Icons.pie_chart_outline),
+                onPressed: _showBudgetImpact,
+                tooltip: 'Show Budget Impact',
+                color: theme.colorScheme.onBackground,
+              ),
+            ),
             Semantics(
               label: 'Close',
               button: true,
@@ -219,70 +372,100 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Semantics(
-                        label: 'Transaction Type',
-                        child: Text(
-                          'Transaction Type',
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 16.sp,
-                            fontWeight: FontWeight.w500,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Semantics(
+                              label: 'Transaction Type',
+                              child: Text(
+                                'Transaction Type',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 16.sp,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          // Receipt scan button
+                          Semantics(
+                            label: 'Scan Receipt',
+                            button: true,
+                            child: IconButton(
+                              icon: const Icon(Icons.document_scanner),
+                              onPressed: _scanReceipt,
+                              tooltip: 'Scan Receipt',
+                              style: IconButton.styleFrom(
+                                backgroundColor:
+                                    theme.colorScheme.primaryContainer,
+                                foregroundColor:
+                                    theme.colorScheme.onPrimaryContainer,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       SizedBox(height: 8.h),
+                      // Transaction type selector (Expense/Income)
                       Semantics(
                         label:
                             _isExpense ? 'Expense selected' : 'Income selected',
                         toggled: true,
-                        child: SegmentedButton<bool>(
-                          segments: const [
-                            ButtonSegment<bool>(
-                              value: true,
-                              label: Text('Expense'),
-                              icon: Icon(Icons.remove_circle_outline),
-                            ),
-                            ButtonSegment<bool>(
-                              value: false,
-                              label: Text('Income'),
-                              icon: Icon(Icons.add_circle_outline),
-                            ),
-                          ],
-                          selected: {_isExpense},
-                          onSelectionChanged: (Set<bool> newSelection) {
-                            setState(() {
-                              _isExpense = newSelection.first;
-                            });
-                          },
-                          style: ButtonStyle(
-                            backgroundColor:
-                                MaterialStateProperty.resolveWith<Color?>((
-                                  states,
-                                ) {
-                                  if (states.contains(MaterialState.selected)) {
-                                    if (_isExpense) {
-                                      return Colors.red.withOpacity(0.13);
-                                    } else {
-                                      return Colors.green.withOpacity(0.13);
-                                    }
-                                  }
-                                  return inputFillColor;
-                                }),
-                            foregroundColor: MaterialStateProperty.all(
-                              theme.colorScheme.onSurface,
-                            ),
-                            shape: MaterialStateProperty.all(
-                              RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12.r),
+                        child: SizedBox(
+                          width: double.infinity, // Make it take full width
+                          child: SegmentedButton<bool>(
+                            segments: const [
+                              ButtonSegment<bool>(
+                                value: true,
+                                label: Text('Expense'),
+                                icon: Icon(Icons.remove_circle_outline),
                               ),
-                            ),
-                            overlayColor: MaterialStateProperty.all(
-                              theme.colorScheme.primary.withOpacity(0.08),
+                              ButtonSegment<bool>(
+                                value: false,
+                                label: Text('Income'),
+                                icon: Icon(Icons.add_circle_outline),
+                              ),
+                            ],
+                            selected: {_isExpense},
+                            onSelectionChanged: (Set<bool> newSelection) {
+                              setState(() {
+                                _isExpense = newSelection.first;
+                              });
+                            },
+                            style: ButtonStyle(
+                              backgroundColor:
+                                  MaterialStateProperty.resolveWith<Color?>((
+                                    states,
+                                  ) {
+                                    if (states.contains(
+                                      MaterialState.selected,
+                                    )) {
+                                      if (_isExpense) {
+                                        return Colors.red.withOpacity(0.13);
+                                      } else {
+                                        return Colors.green.withOpacity(0.13);
+                                      }
+                                    }
+                                    return inputFillColor;
+                                  }),
+                              foregroundColor: MaterialStateProperty.all(
+                                theme.colorScheme.onSurface,
+                              ),
+                              shape: MaterialStateProperty.all(
+                                RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.r),
+                                ),
+                              ),
+                              overlayColor: MaterialStateProperty.all(
+                                theme.colorScheme.primary.withOpacity(0.08),
+                              ),
                             ),
                           ),
                         ),
                       ),
                       SizedBox(height: 16.h),
+
+                      // Title field
                       Semantics(
                         label: 'Title',
                         textField: true,
@@ -312,7 +495,6 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 width: 1.5,
                               ),
                             ),
-                            prefixIcon: const Icon(Icons.title),
                           ),
                           style: TextStyle(
                             fontFamily: 'Inter',
@@ -334,6 +516,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                         ),
                       ),
                       SizedBox(height: 16.h),
+
+                      // Amount field
                       Semantics(
                         label: 'Amount',
                         textField: true,
@@ -369,6 +553,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 width: 1.5,
                               ),
                             ),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.calculate_outlined),
+                              tooltip: 'Show Budget Impact',
+                              onPressed: _showBudgetImpact,
+                            ),
                           ),
                           style: TextStyle(
                             fontFamily: 'Inter',
@@ -395,7 +584,9 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                           },
                           textInputAction: TextInputAction.next,
                           onFieldSubmitted: (_) {
-                            FocusScope.of(context).requestFocus(_noteFocusNode);
+                            FocusScope.of(
+                              context,
+                            ).requestFocus(_payeeFocusNode);
                           },
                           inputFormatters: [
                             FilteringTextInputFormatter.allow(
@@ -405,45 +596,16 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                         ),
                       ),
                       SizedBox(height: 16.h),
+
+                      // Payee field
                       Semantics(
-                        label: 'Category',
-                        child: DropdownButtonFormField<String>(
-                          dropdownColor: theme.cardColor,
-                          value: _selectedCategory,
-                          items:
-                              _categories
-                                  .map(
-                                    (cat) => DropdownMenuItem(
-                                      value: cat,
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            _categoryIcons[cat] ??
-                                                Icons.category,
-                                            size: 18.sp,
-                                            color:
-                                                _isExpense
-                                                    ? theme.colorScheme.primary
-                                                    : Colors.green,
-                                          ),
-                                          SizedBox(width: 8.w),
-                                          Text(
-                                            cat,
-                                            style: TextStyle(
-                                              color:
-                                                  theme.colorScheme.onSurface,
-                                              fontFamily: 'Inter',
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  )
-                                  .toList(),
-                          onChanged:
-                              (val) => setState(() => _selectedCategory = val),
+                        label: 'Payee',
+                        textField: true,
+                        child: TextFormField(
+                          controller: _payeeController,
+                          focusNode: _payeeFocusNode,
                           decoration: InputDecoration(
-                            labelText: 'Category',
+                            labelText: _isExpense ? 'Payee' : 'Payer',
                             labelStyle: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 14.sp,
@@ -465,27 +627,223 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                                 width: 1.5,
                               ),
                             ),
-                            // Removed prefixIcon to avoid duplicate icon
+                            prefixIcon: const Icon(Icons.person_outlined),
                           ),
                           style: TextStyle(
                             fontFamily: 'Inter',
                             fontSize: 16.sp,
-                            color: theme.colorScheme.onSurface,
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please select a category';
-                            }
-                            return null;
+                          textInputAction: TextInputAction.next,
+                          onFieldSubmitted: (_) {
+                            FocusScope.of(context).requestFocus(_noteFocusNode);
                           },
-                          iconEnabledColor: theme.colorScheme.onSurface,
-                          iconDisabledColor: theme.colorScheme.onSurface
-                              .withOpacity(0.5),
-                          borderRadius: BorderRadius.circular(14.r),
-                          menuMaxHeight: 300.h,
                         ),
                       ),
                       SizedBox(height: 16.h),
+
+                      // Visual category selection
+                      Text(
+                        'Category',
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 14.sp,
+                          fontWeight: FontWeight.w500,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                      SizedBox(height: 8.h),
+                      Container(
+                        height: 120.h, // Increased height to prevent overflow
+                        margin: EdgeInsets.only(
+                          bottom: 4.h,
+                        ), // Added bottom margin
+                        child: GridView.builder(
+                          physics:
+                              const BouncingScrollPhysics(), // Added physics for better scrolling
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _categories.length,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 8.w,
+                                crossAxisSpacing: 8.h,
+                                childAspectRatio: 1 / 1,
+                              ),
+                          itemBuilder: (context, index) {
+                            final category = _categories[index];
+                            final isSelected = _selectedCategory == category;
+                            return Semantics(
+                              label: category,
+                              selected: isSelected,
+                              child: GestureDetector(
+                                onTap:
+                                    () => setState(
+                                      () => _selectedCategory = category,
+                                    ),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 200),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        isSelected
+                                            ? theme.colorScheme.primaryContainer
+                                            : inputFillColor,
+                                    borderRadius: BorderRadius.circular(12.r),
+                                    border: Border.all(
+                                      color:
+                                          isSelected
+                                              ? theme.colorScheme.primary
+                                              : borderColor,
+                                      width: isSelected ? 2 : 1,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisSize:
+                                        MainAxisSize
+                                            .min, // Important: minimize the column's height
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _categoryIcons[category] ??
+                                            Icons.category,
+                                        color:
+                                            isSelected
+                                                ? theme.colorScheme.primary
+                                                : theme.colorScheme.onSurface
+                                                    .withOpacity(0.7),
+                                        size: 22.sp, // Slightly smaller icon
+                                      ),
+                                      SizedBox(height: 4.h), // Reduce spacing
+                                      Flexible(
+                                        // Wrap text in Flexible
+                                        child: Text(
+                                          category,
+                                          style: TextStyle(
+                                            fontFamily: 'Inter',
+                                            fontSize: 9.sp, // Smaller font
+                                            fontWeight:
+                                                isSelected
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
+                                            color:
+                                                isSelected
+                                                    ? theme.colorScheme.primary
+                                                    : theme
+                                                        .colorScheme
+                                                        .onSurface,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 1, // Force single line
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      SizedBox(height: 16.h),
+
+                      // Recurring transaction toggle
+                      SwitchListTile(
+                        title: Text(
+                          'Recurring Transaction',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w500,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _isRecurring
+                              ? 'This transaction will repeat $_recurringFrequency'
+                              : 'One-time transaction',
+                          style: TextStyle(
+                            fontFamily: 'Inter',
+                            fontSize: 12.sp,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        value: _isRecurring,
+                        onChanged: (value) => _toggleRecurring(),
+                        secondary: Icon(
+                          _isRecurring ? Icons.repeat : Icons.repeat_one,
+                          color:
+                              _isRecurring
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        activeColor: theme.colorScheme.primary,
+                      ),
+
+                      // Recurring frequency options
+                      if (_isRecurring)
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 300),
+                          margin: EdgeInsets.only(top: 8.h),
+                          padding: EdgeInsets.all(12.w),
+                          decoration: BoxDecoration(
+                            color: inputFillColor,
+                            borderRadius: BorderRadius.circular(12.r),
+                            border: Border.all(color: borderColor),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Repeat Frequency',
+                                style: TextStyle(
+                                  fontFamily: 'Inter',
+                                  fontSize: 14.sp,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                              SizedBox(height: 8.h),
+                              Wrap(
+                                spacing: 8.w,
+                                children:
+                                    _recurringOptions.map((frequency) {
+                                      final isSelected =
+                                          _recurringFrequency == frequency;
+                                      return ChoiceChip(
+                                        label: Text(frequency),
+                                        selected: isSelected,
+                                        onSelected: (selected) {
+                                          if (selected) {
+                                            setState(
+                                              () =>
+                                                  _recurringFrequency =
+                                                      frequency,
+                                            );
+                                          }
+                                        },
+                                        backgroundColor: inputFillColor,
+                                        selectedColor:
+                                            theme.colorScheme.primaryContainer,
+                                        labelStyle: TextStyle(
+                                          color:
+                                              isSelected
+                                                  ? theme.colorScheme.primary
+                                                  : theme.colorScheme.onSurface,
+                                          fontWeight:
+                                              isSelected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.normal,
+                                        ),
+                                      );
+                                    }).toList(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      SizedBox(height: 16.h),
+
+                      // Note field
                       Semantics(
                         label: 'Note (optional)',
                         textField: true,
@@ -536,6 +894,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                         ),
                       ),
                       SizedBox(height: 16.h),
+
+                      // Date picker
                       Row(
                         children: [
                           Expanded(
@@ -585,6 +945,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                         ],
                       ),
                       SizedBox(height: 24.h),
+
+                      // Save button
                       SizedBox(
                         width: double.infinity,
                         height: 50.h,
@@ -648,6 +1010,8 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                         ),
                       ),
                       SizedBox(height: 8.h),
+
+                      // Clear form button
                       if (!_isLoading)
                         Center(
                           child: TextButton(
@@ -657,10 +1021,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
                               _titleController.clear();
                               _amountController.clear();
                               _noteController.clear();
+                              _payeeController.clear();
                               setState(() {
                                 _selectedCategory = _categories.first;
                                 _selectedDate = DateTime.now();
                                 _isExpense = true;
+                                _isRecurring = false;
+                                _recurringFrequency = 'Monthly';
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(

@@ -935,6 +935,7 @@ class BillProvider extends ChangeNotifier {
     required DateTime dueDate,
     required List<String> splitWith,
     Map<String, double>? customSplits,
+    String? category,
   }) {
     // Create new bill object
     final newBill = Bill(
@@ -950,7 +951,7 @@ class BillProvider extends ChangeNotifier {
       status: 'pending',
       paid: false,
       paidBy: const [],
-      category: 'Other',
+      category: category ?? 'Other',
       paidAmount: 0.0,
       paymentHistory: [],
       customSplits: customSplits,

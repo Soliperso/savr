@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -147,78 +148,110 @@ class _MainScreenState extends State<MainScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(child: _pages[_selectedIndex]),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(20),
-            topRight: Radius.circular(20),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 12,
-              offset: const Offset(0, -2),
-            ),
-          ],
+      bottomNavigationBar: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
         ),
-        child: Padding(
-          padding: const EdgeInsets.only(top: 4.0),
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              BottomNavigationBar(
-                currentIndex: _selectedIndex,
-                onTap: _onItemTapped,
-                backgroundColor: Colors.transparent,
-                elevation: 0,
-                type: BottomNavigationBarType.fixed,
-                selectedLabelStyle: const TextStyle(
-                  fontFamily: 'Inter',
-                  fontWeight: FontWeight.bold,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface.withOpacity(0.85),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+              border: Border.all(
+                color:
+                    Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white.withOpacity(0.1)
+                        : Colors.white.withOpacity(0.4),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 16,
+                  offset: const Offset(0, -2),
                 ),
-                unselectedLabelStyle: const TextStyle(fontFamily: 'Inter'),
-                selectedItemColor: Theme.of(context).primaryColor,
-                unselectedItemColor: Colors.grey[400],
-                showUnselectedLabels: false,
-                iconSize: 28,
-                items: const [
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.home),
-                    label: 'Home',
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+              child: Stack(
+                alignment: Alignment.bottomCenter,
+                children: [
+                  BottomNavigationBar(
+                    currentIndex: _selectedIndex,
+                    onTap: _onItemTapped,
+                    backgroundColor: Colors.transparent,
+                    elevation: 0,
+                    type: BottomNavigationBarType.fixed,
+                    selectedLabelStyle: TextStyle(
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.sp,
+                    ),
+                    unselectedLabelStyle: TextStyle(
+                      fontFamily: 'Inter',
+                      fontSize: 11.sp,
+                    ),
+                    selectedItemColor: Theme.of(context).primaryColor,
+                    unselectedItemColor: Colors.grey[400],
+                    showUnselectedLabels: true,
+                    iconSize: 24,
+                    items: const [
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.home_rounded),
+                        label: 'Home',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.swap_horiz_rounded),
+                        label: 'Transactions',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.receipt_long_rounded),
+                        label: 'Bills',
+                      ),
+                      BottomNavigationBarItem(
+                        icon: Icon(Icons.insights_rounded),
+                        label: 'Insights',
+                      ),
+                    ],
                   ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.swap_horiz),
-                    label: 'Transactions',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.receipt_long),
-                    label: 'Bills',
-                  ),
-                  BottomNavigationBarItem(
-                    icon: Icon(Icons.insights),
-                    label: 'Insights',
+                  // Animated pill indicator
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeInOut,
+                    left:
+                        MediaQuery.of(context).size.width / 8 +
+                        (_selectedIndex *
+                            MediaQuery.of(context).size.width /
+                            4) -
+                        16,
+                    bottom: 2,
+                    child: Container(
+                      width: 32,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.3),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
-              // Pill indicator
-              Positioned(
-                left:
-                    MediaQuery.of(context).size.width / 8 +
-                    (_selectedIndex * MediaQuery.of(context).size.width / 4) -
-                    16,
-                bottom: 8,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 250),
-                  width: 32,
-                  height: 6,
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
