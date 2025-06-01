@@ -164,7 +164,9 @@ class BillProvider extends ChangeNotifier {
             id: 'p1',
             amount: 150.0,
             date: DateTime.parse('2025-05-01'),
-            method: 'Credit Card',
+            method:
+                PaymentMethod
+                    .creditCard, // Assuming PaymentMethod.creditCard exists
             paidBy: 'Lisa',
           ),
         ],
@@ -374,6 +376,25 @@ class BillProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Helper function to convert string to PaymentMethod enum
+  PaymentMethod _stringToPaymentMethod(String? methodStr) {
+    switch (methodStr?.toLowerCase()) {
+      case 'credit card':
+        return PaymentMethod.creditCard;
+      case 'debit card':
+        return PaymentMethod.debitCard;
+      case 'paypal':
+        return PaymentMethod.paypal;
+      case 'bank transfer':
+        return PaymentMethod.bankTransfer;
+      case 'cash':
+        return PaymentMethod.cash;
+      default:
+        // Assuming PaymentMethod.other or PaymentMethod.unknown exists as a fallback
+        return PaymentMethod.other;
+    }
+  }
+
   List<Payment> _parsePaymentHistory(dynamic paymentData) {
     if (paymentData == null) return [];
 
@@ -382,7 +403,7 @@ class BillProvider extends ChangeNotifier {
         return Payment(
           id: payment['id'].toString(),
           amount: double.tryParse(payment['amount'].toString()) ?? 0.0,
-          method: payment['method'] ?? 'Unknown',
+          method: _stringToPaymentMethod(payment['method'] as String?),
           date: DateTime.tryParse(payment['date']) ?? DateTime.now(),
           paidBy: payment['paid_by'] ?? '',
         );
@@ -873,7 +894,7 @@ class BillProvider extends ChangeNotifier {
             DateTime.now().millisecondsSinceEpoch
                 .toString(), // Temporary local ID
         amount: amount,
-        method: method,
+        method: _stringToPaymentMethod(method),
         date: date,
         paidBy: 'user', // Current user
       );

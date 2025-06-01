@@ -6,6 +6,7 @@ import '../../../providers/transaction_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/animated_action_button.dart';
 import '../widgets/transaction_list_item.dart';
+import '../models/transaction.dart'; // Corrected import path
 import 'add_transaction_screen.dart';
 
 class TransactionsScreen extends StatefulWidget {
@@ -732,23 +733,15 @@ class _TransactionsScreenState extends State<TransactionsScreen>
     final allTransactions = transactionProvider.transactions;
 
     // Filter transactions based on selected tab
-    final List<Map<String, dynamic>> filteredTransactions;
+    final List<Transaction> filteredTransactions;
     switch (_selectedTabIndex) {
       case 1: // Income
         filteredTransactions =
-            allTransactions
-                .where(
-                  (t) => (double.tryParse(t['amount'].toString()) ?? 0) > 0,
-                )
-                .toList();
+            allTransactions.where((t) => t.amount > 0).toList();
         break;
       case 2: // Expenses
         filteredTransactions =
-            allTransactions
-                .where(
-                  (t) => (double.tryParse(t['amount'].toString()) ?? 0) < 0,
-                )
-                .toList();
+            allTransactions.where((t) => t.amount < 0).toList();
         break;
       default: // All
         filteredTransactions = allTransactions;
@@ -762,12 +755,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
             : filteredTransactions
                 .where(
                   (t) =>
-                      (t['title'] as String).toLowerCase().contains(
-                        searchTerm,
-                      ) ||
-                      (t['category'] as String? ?? '').toLowerCase().contains(
-                        searchTerm,
-                      ),
+                      t.title.toLowerCase().contains(searchTerm) ||
+                      t.category.toLowerCase().contains(searchTerm),
                 )
                 .toList();
 
@@ -801,7 +790,7 @@ class _TransactionsScreenState extends State<TransactionsScreen>
       itemBuilder: (context, index) {
         final transaction = displayedTransactions[index];
         return Dismissible(
-          key: Key(transaction['id']?.toString() ?? '$index'),
+          key: Key(transaction.id ?? '$index'),
           direction: DismissDirection.endToStart,
           background: Container(
             alignment: Alignment.centerRight,
@@ -839,10 +828,8 @@ class _TransactionsScreenState extends State<TransactionsScreen>
             );
           },
           onDismissed: (direction) {
-            if (transaction['id'] != null) {
-              transactionProvider.deleteTransaction(
-                transaction['id'].toString(),
-              );
+            if (transaction.id != null) {
+              transactionProvider.deleteTransaction(transaction.id!);
             }
           },
           child: Padding(

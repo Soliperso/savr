@@ -3,7 +3,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/animation.dart';
+import 'dart:io'; // Added for File
+import 'package:image_picker/image_picker.dart'; // Added for ImagePicker
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart'; // Added for OCR
 import '../../../providers/transaction_provider.dart';
+import '../models/transaction.dart'; // Corrected import path
 
 class AddTransactionScreen extends StatefulWidget {
   const AddTransactionScreen({super.key});
@@ -59,6 +63,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     'Other': Icons.more_horiz,
   };
 
+  // OCR and Image Picker instances
+  final ImagePicker _imagePicker = ImagePicker();
+  final TextRecognizer _textRecognizer = TextRecognizer();
+
+
   @override
   void initState() {
     super.initState();
@@ -91,42 +100,99 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
     _noteFocusNode.dispose();
     _payeeFocusNode.dispose();
     _animationController.dispose();
+    _textRecognizer.close(); // Dispose TextRecognizer
     super.dispose();
   }
 
-  void _scanReceipt() async {
-    // Show loading indicator
-    setState(() => _isLoading = true);
-
+  Future<void> _pickImageAndScan(ImageSource source) async {
     try {
-      // This would be implemented with a camera plugin and ML Kit
-      // For now, we'll simulate receipt scanning with a delay
-      await Future.delayed(const Duration(seconds: 1));
+      final XFile? pickedFile = await _imagePicker.pickImage(source: source);
+      if (pickedFile == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No image selected.')),
+          );
+        }
+        return;
+      }
 
-      // Simulate scanning results
+      final File imageFile = File(pickedFile.path);
+      setState(() => _isLoading = true);
+
+      final InputImage inputImage = InputImage.fromFilePath(imageFile.path);
+      final RecognizedText recognizedText =
+          await _textRecognizer.processImage(inputImage);
+
+      String allRecognizedText = recognizedText.text;
+      if (allRecognizedText.isEmpty) {
+        allRecognizedText = "No text found in the image.";
+      }
+
+      // For now, let's put all recognized text into the notes.
+      // And clear other fields that were previously auto-filled by simulation.
       setState(() {
-        _titleController.text = 'Grocery Shopping';
-        _amountController.text = '34.99';
-        _selectedCategory = 'Food & Groceries';
-        _payeeController.text = 'Whole Foods Market';
+        _noteController.text = allRecognizedText;
+        _titleController.clear();
+        _amountController.clear();
+        _payeeController.clear();
+        _selectedCategory = _categories.firstWhere((cat) => cat == 'General', orElse: () => _categories.first);
         _isLoading = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Receipt scanned successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Receipt scanned. Text added to notes.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to scan receipt: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to scan receipt: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
+  }
+
+  void _showImageSourceActionSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Photo Library'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImageAndScan(ImageSource.gallery);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Camera'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImageAndScan(ImageSource.camera);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _scanReceipt() async {
+    // Show options to pick from camera or gallery
+    _showImageSourceActionSheet(context);
   }
 
   void _toggleRecurring() {
@@ -238,17 +304,19 @@ class _AddTransactionScreenState extends State<AddTransactionScreen>
       }
 
       try {
+        // Create a new Transaction using our consolidated model
+        final newTransaction = Transaction(
+          title: title,
+          amount: finalAmount, // finalAmount is already a double
+          category: category,
+          date: _selectedDate,
+        );
+
         // Using the existing provider method
         final success = await Provider.of<TransactionProvider>(
           context,
           listen: false,
-        ).addTransaction(
-          title,
-          finalAmount,
-          category,
-          _selectedDate,
-          description,
-        );
+        ).addTransaction(newTransaction);
 
         if (!mounted) return;
 

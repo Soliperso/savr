@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:savr/features/transactions/models/transaction.dart'; // Updated import
 
 class InsightsProvider extends ChangeNotifier {
   // Function to group transactions by category and calculate total amounts
   Map<String, double> getCategoryAnalysis(
-    List<Map<String, dynamic>> transactions,
+    List<Transaction> transactions, // Updated type
   ) {
     final Map<String, double> categoryTotals = {};
 
     for (var transaction in transactions.where(
-      (t) => (t['amount'] as double) < 0,
+      (t) => t.isExpense, // Use isExpense getter
     )) {
-      final amount = (transaction['amount'] as double).abs();
-      final category = transaction['category'] as String? ?? 'Other';
+      final amount = transaction.amount.abs();
+      final category = transaction.category; // Direct access
       categoryTotals[category] = (categoryTotals[category] ?? 0) + amount;
     }
 
@@ -21,16 +22,16 @@ class InsightsProvider extends ChangeNotifier {
 
   // Function to group spending by month
   Map<String, double> getMonthlySpending(
-    List<Map<String, dynamic>> transactions,
+    List<Transaction> transactions, // Updated type
   ) {
     final Map<String, double> monthlySpending = {};
     final dateFormat = DateFormat('MMM yyyy');
 
     for (var transaction in transactions.where(
-      (t) => (t['amount'] as double) < 0,
+      (t) => t.isExpense, // Use isExpense getter
     )) {
-      final amount = (transaction['amount'] as double).abs();
-      final date = DateTime.parse(transaction['fullDate'] as String);
+      final amount = transaction.amount.abs();
+      final date = transaction.date; // Direct access
       final monthKey = dateFormat.format(date);
       monthlySpending[monthKey] = (monthlySpending[monthKey] ?? 0) + amount;
     }
@@ -39,6 +40,9 @@ class InsightsProvider extends ChangeNotifier {
   }
 
   // Function to calculate split bills insights
+  // This function seems to operate on a different data structure ('bills')
+  // and might not need changes related to the Transaction model consolidation.
+  // If 'bills' are related to transactions, this might need adjustment later.
   Map<String, dynamic> getSplitBillsInsights(List<Map<String, dynamic>> bills) {
     double totalOwed = 0;
     double totalPending = 0;
@@ -67,7 +71,7 @@ class InsightsProvider extends ChangeNotifier {
 
   // Function to get spending trend analysis
   Map<String, dynamic> getSpendingTrends(
-    List<Map<String, dynamic>> transactions,
+    List<Transaction> transactions, // Updated type
   ) {
     double totalSpent = 0;
     double avgDailySpend = 0;
@@ -79,26 +83,24 @@ class InsightsProvider extends ChangeNotifier {
     // Filter transactions from last 30 days
     final recentTransactions =
         transactions.where((t) {
-          final date = DateTime.parse(t['fullDate'] as String);
-          final amount = t['amount'] as double;
-          return date.isAfter(thirtyDaysAgo) && amount < 0;
+          final date = t.date; // Direct access
+          return date.isAfter(thirtyDaysAgo) &&
+              t.isExpense; // Use isExpense getter
         }).toList();
 
     if (recentTransactions.isNotEmpty) {
       // Calculate total spending
-      totalSpent = recentTransactions.fold(
-        0,
-        (sum, t) => sum + (t['amount'] as double).abs(),
-      );
+      totalSpent = recentTransactions.fold(0, (sum, t) => sum + t.amount.abs());
 
       // Calculate average daily spend
       avgDailySpend = totalSpent / 30;
 
       // Analyze spending by day of week
       for (var transaction in recentTransactions) {
-        final date = DateTime.parse(transaction['fullDate'] as String);
+        final date = transaction.date; // Direct access
         final dayName = DateFormat('EEEE').format(date);
-        final amount = (transaction['amount'] as double).abs();
+        final amount = transaction.amount.abs();
+
         dayOfWeekSpending[dayName] = (dayOfWeekSpending[dayName] ?? 0) + amount;
       }
     }
@@ -112,9 +114,10 @@ class InsightsProvider extends ChangeNotifier {
 
   // Function to get expense pattern insights
   List<String> getExpensePatternInsights(
-    List<Map<String, dynamic>> transactions,
+    List<Transaction> transactions, // Updated type
   ) {
     final insights = <String>[];
+    // Pass the transactions list directly
     final spendingTrends = getSpendingTrends(transactions);
     final categoryAnalysis = getCategoryAnalysis(transactions);
 

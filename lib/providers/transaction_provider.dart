@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import '../features/transactions/models/transaction.dart'; // Changed import
 
 class TransactionProvider extends ChangeNotifier {
-  List<Map<String, dynamic>> _transactions = [];
+  List<Transaction> _transactions = [];
   bool _isLoading = false;
   String? _error;
   final _storage = const FlutterSecureStorage();
@@ -38,15 +38,51 @@ class TransactionProvider extends ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         // Handle different API response formats
+        List<dynamic> transactionData;
+
         if (data['transactions'] is List) {
-          _transactions = List<Map<String, dynamic>>.from(data['transactions']);
+          transactionData = data['transactions'] as List;
         } else if (data['data'] is List) {
-          _transactions = List<Map<String, dynamic>>.from(data['data']);
+          transactionData = data['data'] as List;
         } else if (data is List) {
-          _transactions = List<Map<String, dynamic>>.from(data);
+          transactionData = data;
         } else {
           throw Exception('Invalid transaction data format');
         }
+
+        _transactions =
+            transactionData.map((item) {
+              final Map<String, dynamic> jsonItem = Map<String, dynamic>.from(
+                item,
+              );
+
+              // Convert API response to match consolidated Transaction model
+              // Ensure all required fields are present
+              if (!jsonItem.containsKey('title') &&
+                  jsonItem.containsKey('description')) {
+                jsonItem['title'] = jsonItem['description'];
+              } else if (!jsonItem.containsKey('title')) {
+                jsonItem['title'] = 'Transaction';
+              }
+
+              if (!jsonItem.containsKey('category')) {
+                jsonItem['category'] = 'General';
+              }
+
+              // Handle date conversion
+              if (jsonItem.containsKey('date') && jsonItem['date'] is String) {
+                try {
+                  jsonItem['date'] = DateTime.parse(jsonItem['date']);
+                } catch (e) {
+                  jsonItem['date'] = DateTime.now();
+                }
+              } else if (!jsonItem.containsKey('date')) {
+                jsonItem['date'] = DateTime.now();
+              }
+
+              return Transaction.fromJson(jsonItem);
+            }).toList();
+
         _isLoading = false;
         _error = null;
         notifyListeners();
@@ -70,50 +106,28 @@ class TransactionProvider extends ChangeNotifier {
     }
   }
 
-  List<Map<String, dynamic>> get transactions => _transactions;
+  List<Transaction> get transactions => _transactions;
 
   double get totalBalance {
     return _transactions.fold(
       0,
-      (sum, transaction) =>
-          sum + (double.tryParse(transaction['amount'].toString()) ?? 0),
+      (sum, transaction) => sum + transaction.amount,
     );
   }
 
   double get totalIncome {
     return _transactions
-        .where(
-          (transaction) =>
-              (double.tryParse(transaction['amount'].toString()) ?? 0) > 0,
-        )
-        .fold(
-          0,
-          (sum, transaction) =>
-              sum + (double.tryParse(transaction['amount'].toString()) ?? 0),
-        );
+        .where((transaction) => transaction.amount > 0)
+        .fold(0, (sum, transaction) => sum + transaction.amount);
   }
 
   double get totalExpenses {
     return _transactions
-        .where(
-          (transaction) =>
-              (double.tryParse(transaction['amount'].toString()) ?? 0) < 0,
-        )
-        .fold(
-          0,
-          (sum, transaction) =>
-              sum +
-              (double.tryParse(transaction['amount'].toString()) ?? 0).abs(),
-        );
+        .where((transaction) => transaction.amount < 0)
+        .fold(0, (sum, transaction) => sum + transaction.amount.abs());
   }
 
-  Future<bool> addTransaction(
-    String title,
-    double amount,
-    String category,
-    DateTime date,
-    String description,
-  ) async {
+  Future<bool> addTransaction(Transaction transaction) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -128,27 +142,20 @@ class TransactionProvider extends ChangeNotifier {
         Uri.parse('https://srv797850.hstgr.cloud/api/transactions'),
         headers: {
           'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
-        body: jsonEncode({
-          'title': title,
-          'amount': amount,
-          'category': category,
-          'date': DateFormat('yyyy-MM-dd').format(date),
-          'description': description,
-        }),
+        body: jsonEncode(transaction.toJson()),
       );
 
-      debugPrint('Add Transaction Response Status: ${response.statusCode}');
-      debugPrint('Add Transaction Response Body: ${response.body}');
-
       if (response.statusCode == 201 || response.statusCode == 200) {
-        await fetchTransactionsFromApi(); // Refresh the list
+        // Successfully added
+        _transactions.add(transaction);
+        _isLoading = false;
+        notifyListeners();
         return true;
       } else {
-        final data = jsonDecode(response.body);
-        _error = data['message'] ?? 'Failed to add transaction';
+        _error = 'Failed to add transaction: ${response.statusCode}';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -157,14 +164,12 @@ class TransactionProvider extends ChangeNotifier {
       _error = 'Error: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
-      debugPrint('Add transaction error: $e');
       return false;
     }
   }
 
   Future<bool> deleteTransaction(String transactionId) async {
     _isLoading = true;
-    _error = null;
     notifyListeners();
 
     try {
@@ -184,11 +189,12 @@ class TransactionProvider extends ChangeNotifier {
       );
 
       if (response.statusCode == 200 || response.statusCode == 204) {
-        await fetchTransactionsFromApi(); // Refresh the list
+        _transactions.removeWhere((t) => t.id == transactionId);
+        _isLoading = false;
+        notifyListeners();
         return true;
       } else {
-        final data = jsonDecode(response.body);
-        _error = data['message'] ?? 'Failed to delete transaction';
+        _error = 'Failed to delete transaction: ${response.statusCode}';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -197,52 +203,6 @@ class TransactionProvider extends ChangeNotifier {
       _error = 'Error: ${e.toString()}';
       _isLoading = false;
       notifyListeners();
-      debugPrint('Delete transaction error: $e');
-      return false;
-    }
-  }
-
-  Future<bool> updateTransaction(
-    String transactionId,
-    Map<String, dynamic> updates,
-  ) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
-
-    try {
-      final token = await _storage.read(key: 'auth_token');
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
-
-      final response = await http.put(
-        Uri.parse(
-          'https://srv797850.hstgr.cloud/api/transactions/$transactionId',
-        ),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(updates),
-      );
-
-      if (response.statusCode == 200) {
-        await fetchTransactionsFromApi(); // Refresh the list
-        return true;
-      } else {
-        final data = jsonDecode(response.body);
-        _error = data['message'] ?? 'Failed to update transaction';
-        _isLoading = false;
-        notifyListeners();
-        return false;
-      }
-    } catch (e) {
-      _error = 'Error: ${e.toString()}';
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Update transaction error: $e');
       return false;
     }
   }

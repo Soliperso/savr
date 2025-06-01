@@ -8,7 +8,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 // Import with absolute paths to ensure proper resolution
 import 'package:savr/models/bill.dart';
 import 'package:savr/providers/bill_provider.dart';
+import 'package:savr/providers/chat_provider.dart'; // Ensure ChatProvider is imported
 import 'package:savr/features/shared/widgets/animated_snackbar.dart';
+import './chat_screen.dart'; // Import the ChatScreen
 
 class BillDetailScreen extends StatelessWidget {
   final String billId;
@@ -17,10 +19,8 @@ class BillDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Access the BillProvider directly from the context
     final billProvider = Provider.of<BillProvider>(context, listen: true);
-    // Use a try-catch to handle potential errors
-    Bill? bill;
+    Bill? bill; // Keep as nullable for the try-catch
     try {
       bill = billProvider.getBillById(billId);
     } catch (e) {
@@ -31,16 +31,21 @@ class BillDetailScreen extends StatelessWidget {
     if (bill == null || bill.id.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Bill Details')),
-        body: const Center(child: Text('Bill not found')),
+        body: const Center(
+          child: Text('Bill not found or error loading bill.'),
+        ),
       );
     }
+    // If we reach here, 'bill' is guaranteed to be non-null.
+    // For clarity and to help the analyzer, we use a local non-nullable variable.
+    final Bill currentBill = bill;
 
-    final double amount = bill.amount;
-    final List<String> splitWith = bill.splitWith;
-    final double shareAmount = billProvider.getMyShare(bill);
-    final bool isPaid = bill.paid;
-    final String status = bill.status;
-    final String category = bill.category ?? 'Other';
+    final double amount = currentBill.amount;
+    final List<String> splitWith = currentBill.splitWith;
+    final double shareAmount = billProvider.getMyShare(currentBill);
+    final bool isPaid = currentBill.paid;
+    final String status = currentBill.status;
+    final String category = currentBill.category ?? 'Other';
 
     // Determine status color
     Color statusColor;
@@ -59,10 +64,12 @@ class BillDetailScreen extends StatelessWidget {
     }
 
     // Format the due date
-    final formattedDueDate = DateFormat('MMM dd, yyyy').format(bill.dueDate);
+    final formattedDueDate = DateFormat(
+      'MMM dd, yyyy',
+    ).format(currentBill.dueDate);
 
     // Calculate days remaining or overdue
-    final daysRemaining = bill.dueDate.difference(DateTime.now()).inDays;
+    final daysRemaining = currentBill.dueDate.difference(DateTime.now()).inDays;
     String daysText = '';
     if (status != 'paid') {
       if (daysRemaining > 0) {
@@ -124,7 +131,7 @@ class BillDetailScreen extends StatelessWidget {
                   child:
                       isPaid
                           ? ElevatedButton.icon(
-                            onPressed: () => _shareBill(context, bill),
+                            onPressed: () => _shareBill(context, currentBill),
                             icon: const Icon(Icons.share),
                             label: Text(
                               "Share Details",
@@ -180,10 +187,36 @@ class BillDetailScreen extends StatelessWidget {
         actions: [
           IconButton(
             icon: Icon(
+              Icons.chat_bubble_outline_rounded, // Chat icon
+              color: isDarkMode ? Colors.white : Theme.of(context).primaryColor,
+            ),
+            onPressed: () {
+              // currentBill is guaranteed non-null here
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder:
+                      (context) => ChangeNotifierProvider<ChatProvider>(
+                        create:
+                            (_) =>
+                                ChatProvider(), // Create a new instance of ChatProvider
+                        child: ChatScreen(
+                          billId: currentBill.id,
+                          billName: currentBill.title,
+                        ),
+                      ),
+                ),
+              );
+            },
+            tooltip: 'Open Chat',
+          ),
+          IconButton(
+            icon: Icon(
               Icons.notifications_outlined,
               color: isDarkMode ? Colors.white : Theme.of(context).primaryColor,
             ),
-            onPressed: () => _setReminder(context, bill),
+            onPressed:
+                () => _setReminder(context, currentBill), // Use currentBill
             tooltip: 'Set Reminder',
           ),
           IconButton(
@@ -191,7 +224,8 @@ class BillDetailScreen extends StatelessWidget {
               Icons.share,
               color: isDarkMode ? Colors.white : Theme.of(context).primaryColor,
             ),
-            onPressed: () => _shareBill(context, bill),
+            onPressed:
+                () => _shareBill(context, currentBill), // Use currentBill
             tooltip: 'Share Bill',
           ),
         ],
@@ -282,7 +316,7 @@ class BillDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        bill.title,
+                        currentBill.title,
                         style: TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 24.sp,
@@ -346,13 +380,13 @@ class BillDetailScreen extends StatelessWidget {
                   context,
                   icon: Icons.share_outlined,
                   label: 'Share',
-                  onPressed: () => _shareBill(context, bill),
+                  onPressed: () => _shareBill(context, currentBill),
                 ),
                 _buildQuickActionButton(
                   context,
                   icon: Icons.notifications_outlined,
                   label: 'Remind',
-                  onPressed: () => _setReminder(context, bill),
+                  onPressed: () => _setReminder(context, currentBill),
                 ),
                 _buildQuickActionButton(
                   context,
@@ -513,15 +547,14 @@ class BillDetailScreen extends StatelessWidget {
                           SizedBox(height: 8.h),
                           LinearProgressIndicator(
                             value:
-                                bill.paidAmount != null
-                                    ? (bill.paidAmount! / bill.amount).clamp(
-                                      0.0,
-                                      1.0,
-                                    )
+                                currentBill.paidAmount != null
+                                    ? (currentBill.paidAmount! /
+                                            currentBill.amount)
+                                        .clamp(0.0, 1.0)
                                     : 0.0,
                             backgroundColor: Colors.grey.withOpacity(0.2),
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              bill.paid
+                              currentBill.paid
                                   ? Colors.green
                                   : Theme.of(context).primaryColor,
                             ),
@@ -533,7 +566,7 @@ class BillDetailScreen extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '\$${bill.paidAmount?.toStringAsFixed(2) ?? '0.00'}',
+                                '\$${currentBill.paidAmount?.toStringAsFixed(2) ?? '0.00'}',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 12.sp,
@@ -544,7 +577,7 @@ class BillDetailScreen extends StatelessWidget {
                                 ),
                               ),
                               Text(
-                                '\$${bill.amount.toStringAsFixed(2)}',
+                                '\$${currentBill.amount.toStringAsFixed(2)}',
                                 style: TextStyle(
                                   fontFamily: 'Inter',
                                   fontSize: 12.sp,
@@ -604,14 +637,6 @@ class BillDetailScreen extends StatelessWidget {
             SizedBox(height: 16.h),
             // People list
             _buildPeopleListCard(context, splitWith, shareAmount, isDarkMode),
-            SizedBox(height: 16.h),
-            // Split visualization
-            _buildSplitVisualization(
-              context,
-              splitWith,
-              shareAmount,
-              isDarkMode,
-            ),
             SizedBox(height: 24.h),
 
             // Additional details section
@@ -641,7 +666,7 @@ class BillDetailScreen extends StatelessWidget {
                 ),
                 expandedCrossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (bill.description?.isNotEmpty ?? false) ...[
+                  if (currentBill.description?.isNotEmpty ?? false) ...[
                     Text(
                       'Description',
                       style: TextStyle(
@@ -653,7 +678,7 @@ class BillDetailScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 4.h),
                     Text(
-                      bill.description ?? 'No description provided',
+                      currentBill.description ?? 'No description provided',
                       style: TextStyle(fontFamily: 'Inter', fontSize: 14.sp),
                     ),
                     SizedBox(height: 12.h),
@@ -678,7 +703,8 @@ class BillDetailScreen extends StatelessWidget {
 
             SizedBox(height: 24.h),
             // Payment history section (new)
-            if (bill.paymentHistory != null && bill.paymentHistory!.isNotEmpty)
+            if (currentBill.paymentHistory != null &&
+                currentBill.paymentHistory!.isNotEmpty)
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -699,7 +725,7 @@ class BillDetailScreen extends StatelessWidget {
                         ),
                         child: Column(
                           children: [
-                            ...bill.paymentHistory!.map((payment) {
+                            ...currentBill.paymentHistory!.map((payment) {
                               final paymentDate = DateFormat(
                                 'MMM dd, yyyy',
                               ).format(payment.date);
@@ -721,7 +747,9 @@ class BillDetailScreen extends StatelessWidget {
                                   ),
                                 ),
                                 trailing: Text(
-                                  payment.method,
+                                  payment
+                                      .method
+                                      .name, // Access the name property of the enum
                                   style: TextStyle(
                                     fontFamily: 'Inter',
                                     fontSize: 14.sp,

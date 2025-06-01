@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:savr/features/transactions/models/transaction.dart'; // Updated import
 import '../../../core/theme/app_colors.dart';
 
 class RecentTransactionList extends StatelessWidget {
-  final List<Map<String, dynamic>> transactions;
+  final List<Transaction> transactions; // Updated type
 
   const RecentTransactionList({super.key, required this.transactions});
 
@@ -55,56 +56,27 @@ class RecentTransactionList extends StatelessWidget {
           ),
       itemBuilder: (context, index) {
         final tx = transactions[index];
-        double amount = tx['amount'] as double;
-        bool isNegative = amount < 0;
-        String displayAmount =
-            (isNegative ? '- ' : '+ ') + '\$${amount.abs().toStringAsFixed(2)}';
-        IconData icon;
-        Color iconColor;
-        // Simple category icon logic (expand as needed)
-        switch ((tx['category'] ?? '').toString().toLowerCase()) {
-          case 'food & groceries':
-            icon = Icons.shopping_cart;
-            iconColor = Colors.orangeAccent;
-            break;
-          case 'income':
-            icon = Icons.attach_money;
-            iconColor = Colors.green;
-            break;
-          case 'transportation':
-            icon = Icons.directions_car;
-            iconColor = Colors.blueAccent;
-            break;
-          case 'entertainment':
-            icon = Icons.movie;
-            iconColor = Colors.purple;
-            break;
-          case 'health & fitness':
-            icon = Icons.fitness_center;
-            iconColor = Colors.redAccent;
-            break;
-          default:
-            icon = isNegative ? Icons.arrow_downward : Icons.arrow_upward;
-            iconColor =
-                isNegative ? AppColors.expenseRed : AppColors.incomeGreen;
+        String displayAmount = tx.formattedAmount; // Use formattedAmount getter
+
+        IconData icon = tx.summaryIcon; // Use summaryIcon getter
+        Color iconColor = tx.summaryIconColor; // Use summaryIconColor getter
+
+        // Date formatting: show Today, Yesterday, or formatted date
+        String dateLabel;
+        final txDate = tx.date;
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final txDay = DateTime(txDate.year, txDate.month, txDate.day);
+
+        if (txDay == today) {
+          dateLabel = 'Today';
+        } else if (txDay == today.subtract(const Duration(days: 1))) {
+          dateLabel = 'Yesterday';
+        } else {
+          dateLabel =
+              tx.formattedDate; // Use formattedDate getter from Transaction model
         }
-        // Date formatting: show Today, Yesterday, or date
-        String dateLabel = tx['fullDate'] == null ? tx['date'] as String : '';
-        if (tx['fullDate'] != null) {
-          final txDate = DateTime.tryParse(tx['fullDate']);
-          if (txDate != null) {
-            final now = DateTime.now();
-            final today = DateTime(now.year, now.month, now.day);
-            final txDay = DateTime(txDate.year, txDate.month, txDate.day);
-            if (txDay == today) {
-              dateLabel = 'Today';
-            } else if (txDay == today.subtract(const Duration(days: 1))) {
-              dateLabel = 'Yesterday';
-            } else {
-              dateLabel = tx['date'] as String;
-            }
-          }
-        }
+
         return InkWell(
           borderRadius: BorderRadius.circular(12.r),
           onTap: () {
@@ -112,11 +84,11 @@ class RecentTransactionList extends StatelessWidget {
           },
           child: ListTile(
             leading: CircleAvatar(
-              backgroundColor: iconColor.withValues(alpha: .13),
+              backgroundColor: iconColor.withOpacity(0.13),
               child: Icon(icon, color: iconColor),
             ),
             title: Text(
-              tx['title'] as String,
+              tx.title, // Use title from Transaction object
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 14.sp,
@@ -126,7 +98,7 @@ class RecentTransactionList extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             subtitle: Text(
-              '${tx['category'] ?? ''} • $dateLabel',
+              '${tx.category} • $dateLabel', // Use category string and formatted dateLabel
               style: TextStyle(
                 fontFamily: 'Inter',
                 fontSize: 12.sp,
@@ -142,7 +114,7 @@ class RecentTransactionList extends StatelessWidget {
                 fontSize: 16.sp,
                 fontWeight: FontWeight.bold,
                 color:
-                    isNegative ? AppColors.expenseRed : AppColors.incomeGreen,
+                    tx.isExpense ? AppColors.expenseRed : AppColors.incomeGreen,
               ),
             ),
             contentPadding: EdgeInsets.symmetric(

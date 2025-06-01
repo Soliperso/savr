@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
+import 'package:savr/features/transactions/models/transaction.dart' as models;
 import '../../../core/theme/app_colors.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/bill_provider.dart';
@@ -84,12 +85,12 @@ class _DashboardScreenState extends State<DashboardScreen>
 
     // Calculate summary values
     final income = transactions
-        .where((t) => (t['amount'] as double) > 0)
-        .fold<double>(0, (sum, t) => sum + (t['amount'] as double));
+        .where((t) => (t.amount) > 0)
+        .fold<double>(0, (sum, t) => sum + (t.amount));
     final expenses =
         transactions
-            .where((t) => (t['amount'] as double) < 0)
-            .fold<double>(0, (sum, t) => sum + (t['amount'] as double))
+            .where((t) => (t.amount) < 0)
+            .fold<double>(0, (sum, t) => sum + (t.amount))
             .abs();
     final savings = income - expenses;
 
@@ -885,10 +886,25 @@ class _DashboardScreenState extends State<DashboardScreen>
                 billProvider,
                 _,
               ) {
+                // Convert transactions to the correct type
+                final List<models.Transaction> transactionsForInsights =
+                    transactions
+                        .map(
+                          (t) => models.Transaction(
+                            id: t.id,
+                            billId: t.billId, // Added billId
+                            payerId: t.payerId, // Added payerId
+                            amount: t.amount,
+                            title: t.title, // Use title instead of description
+                            date: t.date,
+                            category: t.category,
+                            // Add any other required fields based on the Transaction class
+                          ),
+                        )
+                        .toList();
+
                 final expenseInsights = insightsProvider
-                    .getExpensePatternInsights(
-                      transactionProvider.transactions,
-                    );
+                    .getExpensePatternInsights(transactionsForInsights);
                 final billAdvice = insightsProvider.getBillAdvice(
                   billProvider.bills
                       .map(
@@ -903,7 +919,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 );
                 final savingsMilestone =
                     savings > 0
-                        ? 'Your savings increased by  24${savings.toStringAsFixed(0)} compared to last month. Keep up the good work!'
+                        ? 'Your savings increased by 24${savings.toStringAsFixed(0)} compared to last month. Keep up the good work!'
                         : 'Try to save more this month!';
                 final cards = [
                   {

@@ -166,7 +166,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   SizedBox(width: 8.w),
                   Text(
                     _imageFile != null && !imageUpdateSuccess
-                        ? 'Profile updated but image upload failed'
+                        ? 'Profile updated but image upload failed: ${imageErrorMessage ?? "Unknown error"}'
                         : 'Profile updated successfully!',
                   ),
                 ],

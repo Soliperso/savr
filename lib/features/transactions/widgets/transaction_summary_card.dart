@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:savr/features/transactions/models/transaction.dart';
+import 'package:savr/features/transactions/models/transaction.dart'; // Updated import
 
 class TransactionSummaryCard extends StatelessWidget {
   final Transaction transaction;

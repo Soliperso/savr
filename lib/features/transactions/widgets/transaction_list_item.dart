@@ -2,33 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/app_colors.dart';
+import '../models/transaction.dart'; // Corrected import path
 
 class TransactionListItem extends StatelessWidget {
-  final Map<String, dynamic> transaction;
+  final Transaction transaction;
 
   const TransactionListItem({super.key, required this.transaction});
 
   @override
   Widget build(BuildContext context) {
-    // Parse transaction data
-    final title = transaction['title'] as String;
-    final amount = transaction['amount'] as double;
-    final isIncome = amount >= 0;
-    final category = transaction['category'] as String? ?? 'Uncategorized';
-
-    // Format date
-    String formattedDate;
-    try {
-      final date =
-          transaction['date'] is DateTime
-              ? transaction['date'] as DateTime
-              : DateTime.tryParse(transaction['date'] as String) ??
-                  DateTime.now();
-      formattedDate = DateFormat('MMM d, yyyy').format(date);
-    } catch (e) {
-      formattedDate = transaction['date'] as String? ?? 'Unknown date';
-    }
-
+    final title = transaction.title;
+    final amount = transaction.amount;
+    final isIncome = transaction.isIncome;
+    final category = transaction.category;
+    final formattedDate = DateFormat('MMM d, yyyy').format(transaction.date);
     final formattedAmount = '\$${amount.abs().toStringAsFixed(2)}';
 
     // Get category icon

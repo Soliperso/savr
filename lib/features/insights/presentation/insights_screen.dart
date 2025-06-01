@@ -44,9 +44,7 @@ class InsightsScreen extends StatelessWidget {
                   'No spending pattern insights available yet.',
               trendData:
                   transactionProvider.transactions
-                      .map(
-                        (t) => double.tryParse(t['amount'].toString()) ?? 0.0,
-                      )
+                      .map((t) => double.tryParse(t.amount.toString()) ?? 0.0)
                       .toList(),
               date: DateTime.now(),
               type: InsightType.spending,

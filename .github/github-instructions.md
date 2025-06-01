@@ -1,4 +1,3 @@
-<!-- # Best Practices for SavvySplit Development
 
 ## 1. Architecture and Code Organization
 - **Modular Structure**: Organize code in `lib/core/` (theme, constants), `lib/features/` (auth, transactions, bills, insights), and `lib/providers/` (state management).
@@ -12,6 +11,7 @@
 - **Responsive Design**: Use `flutter_screenutil` with design size 375x812 for all widgets.
 - **Animations**: Add subtle animations (e.g., FadeTransition) for key actions like bill splitting.
 - **Accessibility**: Include `semanticsLabel` for buttons/icons, ensure ≥4.5:1 contrast ratio.
+- **Accessibility**: Use const keyword whenever possible 
 
 ## 3. Performance Optimization
 - **Caching**: Cache API responses in `shared_preferences` or `sqflite` for transactions and bills.
@@ -41,12 +41,11 @@
 - **Scripts**: Add build scripts in `scripts/` for manual tasks.
 
 ## Usage with AI Agent
-- Reference this file in AI prompts: "Follow the best practices in BEST_PRACTICES.md."
+- Reference this file in AI prompts: "Follow the best practices in github-instructions.md."
 - Ensure generated code adheres to these standards, manually verifying architecture, typography, and security. -->
 
 
 
-Best Practices for SavvySplit Development
 1. Architecture and Code Organization
 
 Modular Structure: Organize code in lib/core/ (theme, constants), lib/features/ (auth, transactions, bills, insights), and lib/providers/ (state management).
@@ -168,6 +167,6 @@ Scripts: Add build scripts in scripts/ for manual tasks.
 
 Usage with AI Agent
 
-Reference this file in AI prompts: "Follow the best practices in BEST_PRACTICES.md."
+Reference this file in AI prompts: "Follow the best practices in github-instructions.md."
 Ensure generated code adheres to these standards, manually verifying architecture, typography, and security.
 
